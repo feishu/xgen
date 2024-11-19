@@ -81,6 +81,17 @@ const Index = (props: IPropsItem) => {
 		return <FormRender item={item}></FormRender>
 	}
 
+	if (item.view.type?.length > 0) {
+		if (item.width) {
+			return (
+				<Col span={item.width} style={{ marginBottom: 16 }}>
+					<ViewRender item={item} data={data}></ViewRender>
+				</Col>
+			)
+		}
+		return <ViewRender item={item} data={data[item.bind]}></ViewRender>
+	}
+
 	return null
 }
 
