@@ -1,6 +1,7 @@
 {
 	"extends": "./.umi/tsconfig.json",
 	"compilerOptions": {
+		"jsx": "react",
 		"experimentalDecorators": true,
 		"paths": {
 			"@/*": ["*"],
