@@ -11,13 +11,13 @@ const Index = async () => {
 	const search_params = Object.fromEntries(params)
 
 	let [schema,setSchema] = useState({type:"page",body:{}})
-	const { moduleId, pageId = 'index' } = useMatch<Global.AnyObject>(
-		/^\/syd\/([^\/]+)\/([^\/]+)(?:\/([^\/]+))?(?:\/([^\/]+))?/,
-		['moduleId', 'pageId']
+	const { moduleId, pageId = 'index', param0, param1, param2 } = useMatch<Global.AnyObject>(
+		/^\/syd\/([^\/]+)\/([^\/]+)(?:\/([^\/]+))?(?:\/([^\/]+))?(?:\/([^\/]+))?/,
+		['moduleId', 'pageId', 'param0', 'param1', 'param2']
 	)
 
 	const getPageSchema = () => {
-		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}/${pageId}`)
+		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}/${pageId}`,{ param0, param1, param2 })
 	}	
 
 	// 初始化获取所有页面信息
