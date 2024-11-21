@@ -32,8 +32,11 @@ const Index = async () => {
 
 
 	if (!moduleId) history.push('/404')
+	
+
+	const __s = JSON.stringify(schema, null, 2).toString() 
 	return (
-		<pre>{ JSON.stringify(schema, null, 2) }</pre>
+		<pre>{ __s }</pre>
 	)
 }
 
