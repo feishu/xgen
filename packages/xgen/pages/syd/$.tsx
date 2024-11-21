@@ -1,5 +1,5 @@
 import { useMatch } from '@/hooks'
-import { history, useSearchParams } from '@umijs/max'
+import { history, useSearchParams, getLocale } from '@umijs/max'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
 import type { Global, Response } from '@/types'
@@ -11,13 +11,13 @@ const Index = async () => {
 	const search_params = Object.fromEntries(params)
 
 	let [schema,setSchema] = useState({type:"page",body:{}})
-	const { type, model } = useMatch<Global.Match>(
+	const { moduleId, pageId = 'index' } = useMatch<Global.AnyObject>(
 		/^\/syd\/([^\/]+)\/([^\/]+)(?:\/([^\/]+))?(?:\/([^\/]+))?/,
-		['type', 'model']
+		['moduleId', 'pageId']
 	)
 
 	const getPageSchema = () => {
-		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${type}/${model}`)
+		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}/${pageId}`)
 	}	
 
 	// 初始化获取所有页面信息
@@ -30,7 +30,7 @@ const Index = async () => {
 	  }, [])
 
 
-	if (!model) history.push('/404')
+	if (!moduleId) history.push('/404')
 	return (
 		<div>{ `${schema},${search_params}` } </div>
 	)
