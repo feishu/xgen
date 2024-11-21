@@ -36,7 +36,8 @@ const Index = async () => {
 
 	const __s = JSON.stringify(schema, null, 2).toString() 
 	return (
-		<div dangerouslySetInnerHTML={{ __html: JSON.stringify(__s, null, 2) }} />
+		<pre>xxx</pre>
+		//<div dangerouslySetInnerHTML={{ __html: __s }} />
 	)
 }
 
