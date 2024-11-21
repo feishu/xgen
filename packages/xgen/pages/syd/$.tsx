@@ -10,7 +10,7 @@ const Index = () => {
 	const search_params = Object.fromEntries(params)
 
 	const { type, model, id, formType } = useMatch<Global.Match>(
-		/^\/x\/([^\/]+)\/([^\/]+)(?:\/([^\/]+))?(?:\/([^\/]+))?/,
+		/^\/syd\/([^\/]+)\/([^\/]+)(?:\/([^\/]+))?(?:\/([^\/]+))?/,
 		['type', 'model', 'id', 'formType']
 	)
 
