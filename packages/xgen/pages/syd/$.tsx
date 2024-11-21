@@ -15,11 +15,9 @@ const Index = () => {
 	)
 
 	if (!model) history.push('/404')
-
+	const html =  `type={type},model={model},id={id},formType={formType},search_params={search_params}`
 	return (
-		<div>
-			type={type},model={model},id={id},formType={formType},search_params={search_params}
-		</div>
+		<div>{html}</div>
 	)
 }
 
