@@ -6,7 +6,7 @@ import { render as renderAmis } from 'amis';
 import type { Global, Response } from '@/types'
 
 /** Dynamically forward to the components */
-const Index = async () => {
+const Index = () => {
 	const locale = getLocale()
 	const [params] = useSearchParams()
 	const search_params = Object.fromEntries(params)
@@ -36,7 +36,7 @@ const Index = async () => {
 
 	const __s = JSON.stringify(schema, null, 2).toString() 
 	return (
-		<div>xxx</div>//<div dangerouslySetInnerHTML={{ __html: JSON.stringify(__s, null, 2) }} />
+		<pre>{__s}</pre>//<div dangerouslySetInnerHTML={{ __html: JSON.stringify(__s, null, 2) }} />
 	)
 }
 
