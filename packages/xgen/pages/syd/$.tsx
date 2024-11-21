@@ -2,6 +2,7 @@ import { useMatch } from '@/hooks'
 import { history, useSearchParams, getLocale } from '@umijs/max'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
+import { render as renderAmis } from 'amis';
 import type { Global, Response } from '@/types'
 
 /** Dynamically forward to the components */
@@ -32,7 +33,7 @@ const Index = async () => {
 
 	if (!moduleId) history.push('/404')
 	return (
-		<div>{ `${schema},${search_params}` } </div>
+		<div>{ JSON.stringify(schema, null, 2) }</div>
 	)
 }
 
