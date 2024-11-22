@@ -5,7 +5,6 @@ import axios from 'axios'
 import { useEffect, useState } from 'react'
 import type { Global, Response } from '@/types'
 import AmisRender from '@/components/base/AmisRender'
-import {Spin} from 'antd'
 
 /** Dynamically forward to the components */
 const Index = () => {
@@ -28,20 +27,20 @@ const Index = () => {
 		getPageSchema().then((res:any) => {
 			setLoading(false)
 			if (res && res.body) {
+				if(!schema.full)
+					schema.full = false
 				setSchema(res)
 			}
 		})
-	  }, [])
+	  }, [moduleId,pageId])
 
 
 	if (!moduleId) history.push('/404')
 
 	return (
-		<Spin spinning={loading}
-              className="w_100"
-              style={{minHeight: loading ? '500px' : ''}}>
-            <AmisRender schema={schema}/>
-        </Spin>
+		<Page title={schema.title} className='w_100' full={schema.full} withRows>
+			<AmisRender schema={schema}/>
+		</Page>
 	)
 }
 
