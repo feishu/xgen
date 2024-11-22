@@ -1,5 +1,5 @@
 import { useMatch } from '@/hooks'
-import { useMount, useRequest } from 'ahooks'
+// import { useMount, useRequest } from 'ahooks'
 import { history, useSearchParams, getLocale } from '@umijs/max'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
