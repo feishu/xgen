@@ -5,6 +5,7 @@ import axios from 'axios'
 import { useEffect, useState } from 'react'
 import type { Global, Response } from '@/types'
 import AmisRender from '@/components/base/AmisRender'
+import { Page } from '@/components'
 
 /** Dynamically forward to the components */
 const Index = () => {
