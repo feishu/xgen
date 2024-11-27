@@ -4,6 +4,7 @@ import axios from 'axios'
 import { useEffect, useState } from 'react'
 import type { Global, Response } from '@/types'
 import AmisRender from '@/components/base/AmisRender'
+import { Page } from '@/components'
 
 /** Dynamically forward to the components */
 const Index = () => {
@@ -34,9 +35,9 @@ const Index = () => {
 	if (!moduleId) history.push('/404')
 
 	return (
-		<Page title={schema.title} className='w_100' full={schema.full} withRows>
+		// <Page title={schema.title} className='w_100' full={schema.full} withRows>
 			<AmisRender schema={schema}/>
-		</Page>
+		// </Page>
 	)
 }
 
