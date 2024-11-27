@@ -8,7 +8,7 @@ import { getLocale, setLocale } from '@umijs/max'
 import { IconButton, SvgIcon } from "../Icon";
 
 import type { MenuProps } from "antd";
-import type { Locale as AntdLocal } from "antd/es/locale";
+import type { Locale as AntdLocal } from "antd/es/locale-provider";
 
 import { LocalEnum } from "@/types/enum";
 
