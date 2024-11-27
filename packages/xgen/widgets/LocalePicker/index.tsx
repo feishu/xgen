@@ -1,5 +1,5 @@
-import en_US from "antd/locale/en_US";
-import zh_CN from "antd/locale/zh_CN";
+import en_US from "antd/es/locale/en_US";
+import zh_CN from "antd/es/locale/zh_CN";
 
 import { Dropdown } from "antd";
 
