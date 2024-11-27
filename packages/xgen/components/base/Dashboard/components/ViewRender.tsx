@@ -8,11 +8,11 @@ const Index = (props: IPropsViewRender) => {
 	const { item, data = null } = props
 	if (data === null || data === undefined) return null
 	const viewProps = Bind(Dot(item.view.props), data)
-
+	const _viewType = item.view.type.split('/')[0]
 	return (
 		<Card title={item.name} style={item.view.props?.cardStyle} ignoreMarginBottom>
 			<X
-				type='view'
+				type={_viewType}
 				name={item.view.type.split('/')[1]}
 				props={{
 					...viewProps,
