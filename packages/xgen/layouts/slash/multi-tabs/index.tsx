@@ -35,7 +35,7 @@ import {
 
 import { type KeepAliveTab, useMultiTabsContext } from "./multi-tabs-provider";
 
-import { MultiTabOperation, ThemeLayout } from "#/enum";
+import { MultiTabOperation, ThemeLayout } from "@/types/enum";
 
 import { useGlobal } from '@/context/app'
 

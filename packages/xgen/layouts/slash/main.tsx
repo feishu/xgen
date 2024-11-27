@@ -14,7 +14,7 @@ import {
 import MultiTabs from "./multi-tabs";
 import { MultiTabsProvider } from "./multi-tabs/multi-tabs-provider";
 
-import { ThemeLayout } from "#/enum";
+import { ThemeLayout } from "@/types/enum";
 import { useGlobal } from "@/context/app";
 
 type Props = {

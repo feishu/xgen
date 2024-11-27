@@ -24,7 +24,7 @@ import {
 } from "./config";
 import NavVertical from "./nav/nav-vertical";
 
-import { ThemeLayout } from "#/enum";
+import { ThemeLayout } from "@/types/enum";
 
 type Props = {
 	className?: string;

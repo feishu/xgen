@@ -3,7 +3,7 @@ import { useResponsive } from "@/hooks/theme";
 import NavHorizontal from "./nav-horizontal";
 import NavVertical from "./nav-vertical";
 import { useGlobal } from '@/context/app'
-import { ThemeLayout } from "#/enum";
+import { ThemeLayout } from "@/types/enum";
 
 export default function Nav() {
 	const global = useGlobal()

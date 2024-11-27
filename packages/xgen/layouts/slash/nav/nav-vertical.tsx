@@ -8,7 +8,7 @@ import { useMenuItems, useSearch } from '../../components/Menu/hooks'
 import { useThemeToken } from "@/hooks/theme";
 import { NAV_WIDTH } from "../config";
 import NavLogo from "./nva-logo";
-import { ThemeLayout, ThemeMode } from "#/enum";
+import { ThemeLayout, ThemeMode } from "@/types/enum";
 import { useGlobal } from '@/context/app'
 
 const { Sider } = Layout;

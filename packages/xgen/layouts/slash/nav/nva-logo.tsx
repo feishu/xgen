@@ -7,7 +7,7 @@ import { useGlobal } from '@/context/app'
 
 import { HEADER_HEIGHT } from "../config";
 
-import { ThemeLayout } from "#/enum";
+import { ThemeLayout } from "@/types/enum";
 
 type Props = {
 	collapsed: boolean;

@@ -11,7 +11,7 @@ import {
 import { useCurrentRouteMeta, useRouter } from "@/hooks/router";
 import { replaceDynamicParams } from "@/hooks/theme";
 
-// import type { RouteMeta } from "#/router";
+// import type { RouteMeta } from "@/types/router";
 type RouteMeta = {
 	key:string, 
 	params: any

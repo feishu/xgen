@@ -10,7 +10,7 @@ import { IconButton, SvgIcon } from "../Icon";
 import type { MenuProps } from "antd";
 import type { Locale as AntdLocal } from "antd/es/locale";
 
-import { LocalEnum } from "#/enum";
+import { LocalEnum } from "@/types/enum";
 
 type Locale = keyof typeof LocalEnum;
 type Language = {
