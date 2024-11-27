@@ -3,7 +3,6 @@ import { makeAutoObservable, reaction, toJS } from 'mobx'
 import { genConfig } from 'react-nice-avatar'
 import { singleton } from 'tsyringe'
 
-import { sleep } from '@/knife'
 import { Stack } from '@/models'
 import Service from '@/services/app'
 import { getCurrentMenuIndexs } from '@/utils'
@@ -12,10 +11,20 @@ import { local } from '@yaoapp/storex'
 import type { AvatarFullConfig } from 'react-nice-avatar'
 
 import type { App, LocaleMessages } from '@/types'
+import Import from '@/components/optional/Table/Import'
+import { ThemeLayout, ThemeMode, ThemeColorPresets } from "@/types/enum";
 
 @singleton()
 export default class GlobalModel {
-	theme: App.Theme = 'light'
+	settings: App.Settings = {
+		themeColorPresets: ThemeColorPresets.Default,
+		themeMode: ThemeMode.Light,
+		themeLayout: ThemeLayout.Vertical,
+		themeStretch: false,
+		breadCrumb: true,
+		multiTab: false,
+		darkSidebar: false,
+	}
 	avatar = {} as AvatarFullConfig
 	locale_messages = {} as LocaleMessages
 	app_info = {} as App.Info
@@ -109,9 +118,8 @@ export default class GlobalModel {
 		local.avatar = this.avatar
 	}
 
-	setTheme(theme: App.Theme) {
-		this.theme = theme
-
+	setTheme(theme: ThemeMode) {
+		this.settings.themeMode = theme
 		local.xgen_theme = theme
 		document.documentElement.setAttribute('data-theme', theme)
 		document.documentElement.style.colorScheme = theme

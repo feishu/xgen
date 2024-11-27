@@ -1,6 +1,5 @@
 import { useMatch } from '@/hooks'
-// import { useMount, useRequest } from 'ahooks'
-import { history, useSearchParams, getLocale } from '@umijs/max'
+import { history } from '@umijs/max'
 import axios from 'axios'
 import { useEffect, useState } from 'react'
 import type { Global, Response } from '@/types'
@@ -8,18 +7,15 @@ import AmisRender from '@/components/base/AmisRender'
 
 /** Dynamically forward to the components */
 const Index = () => {
-	const locale = getLocale()
-	const [params] = useSearchParams()
-	const search_params = Object.fromEntries(params)
-	const { moduleId, pageId = 'index', param0, param1, param2 } = useMatch<Global.AnyObject>(
-		/^\/syd\/([^\/]+)\/([^\/]+)(?:\/([^\/]+))?(?:\/([^\/]+))?(?:\/([^\/]+))?/,
-		['moduleId', 'pageId', 'param0', 'param1', 'param2']
+	const { moduleId, pageId = 'index' } = useMatch<Global.AnyObject>(
+		/^\/syd\/([^\/]+)\/([^\/]+)?/,
+		['moduleId', 'pageId']
 	)
 
 	const [schema,setSchema] = useState({type:"page",body:{}})
 	const [loading, setLoading] = useState(true)	
 	const getPageSchema = () => {
-		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}/${pageId}`,{ param0, param1, param2 })
+		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}/${pageId}`)
 	}	
 
 	// 初始化获取所有页面信息

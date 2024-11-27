@@ -6,6 +6,7 @@
 		"paths": {
 			"@/*": ["*"],
 			"@@/*": [".umi/*"],
+			"#/*": ["types/*"],
 			"@umijs/max": ["../node_modules/.pnpm/umi@*/node_modules/umi"],
 			"@umijs/max/typings": [".umi/typings"],
 			"@yaoapp/*": ["../*/src"]

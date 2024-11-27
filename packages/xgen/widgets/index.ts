@@ -1,5 +1,5 @@
 export { default as ErrorCatcher } from './ErrorCatcher'
-export { default as Icon } from './Icon'
+export { Icon as Icon, Iconify, SvgIcon, IconButton } from './Icon'
 export { default as Card } from './Card'
 export { default as Modal } from './Modal'
 export { default as ShadowTheme } from './ShadowTheme'

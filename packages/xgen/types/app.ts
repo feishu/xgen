@@ -1,7 +1,16 @@
 import type { Action, Common } from '@/types'
+import type { ThemeLayout, ThemeMode, ThemeColorPresets } from './enum'
 
 export declare namespace App {
-	type Theme = 'light' | 'dark'
+	type Settings = {
+		themeColorPresets: ThemeColorPresets;
+		themeMode: ThemeMode;
+		themeLayout: ThemeLayout;
+		themeStretch: boolean;
+		breadCrumb: boolean;
+		multiTab: boolean;
+		darkSidebar: boolean;
+	};
 
 	type ChatCmd = {
 		id: string

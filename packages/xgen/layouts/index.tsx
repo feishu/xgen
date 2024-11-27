@@ -25,6 +25,8 @@ import Neo from './components/Neo'
 import LoginWrapper from './wrappers/Login'
 import AuthWrapper from './wrappers/Auth'
 
+import DashboardLayout from "./slash";
+
 import type {
 	IPropsHelmet,
 	IPropsLoginWrapper,
@@ -152,7 +154,7 @@ const Index = () => {
 										</Container>
 									</Then>
 								</If>
-								<If condition={!hide_nav && layout === '2-columns'}>
+								{/* <If condition={!hide_nav && layout === '2-columns'}>
 									<Then>
 										<Loading {...props_loading}></Loading>
 										<Nav {...props_nav}></Nav>
@@ -189,9 +191,16 @@ const Index = () => {
 											</p>
 										</div>
 									</Then>
+								</If> */}
+
+								<If condition={!hide_nav}>
+									<Then>
+										<Loading {...props_loading}></Loading>
+										<DashboardLayout {...props_container}/>
+									</Then>
 								</If>
 
-								{global.app_info.optional?.neo?.api && <Neo {...props_neo}></Neo>}
+								{/* {global.app_info.optional?.neo?.api && <Neo {...props_neo}></Neo>} */}
 							</Fragment>
 						</Then>
 					</If>
