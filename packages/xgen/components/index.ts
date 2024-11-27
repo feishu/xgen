@@ -1,7 +1,0 @@
-export { default as X } from './x'
-export { default as Item } from './edit/Item'
-export { default as Page } from './base/Page'
-export { default as Filter } from './base/Filter'
-export { default as PureTable } from './base/PureTable'
-export { default as PureForm } from './base/PureForm'
-export { default as PureChart } from './base/PureChart'
