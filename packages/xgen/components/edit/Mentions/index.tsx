@@ -29,11 +29,11 @@ const Index = (props: IProps) => {
 	}, [props])
 
 	return (
-		<Fragment>
-			<Item {...itemProps} {...{ __bind, __name }}>
+        (<Fragment>
+            <Item {...itemProps} {...{ __bind, __name }}>
 				<Mentions
 					className={styles._local}
-					dropdownClassName={styles._dropdown}
+					popupClassName={styles._dropdown}
 					placeholder={`${is_cn ? '请输入@选择' : 'Please input @ to mention someone'}${__name}`}
 					getPopupContainer={() => ref.current as HTMLDivElement}
 					{...rest_props}
@@ -46,9 +46,9 @@ const Index = (props: IProps) => {
 					))}
 				</Mentions>
 			</Item>
-			<div ref={ref}></div>
-		</Fragment>
-	)
+            <div ref={ref}></div>
+        </Fragment>)
+    );
 }
 
 export default new window.$app.Handle(Index).by(observer).by(window.$app.memo).get()

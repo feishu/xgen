@@ -20,8 +20,8 @@ const Index = (props: IPropsModalWrap) => {
 	}, ref)
 
 	return (
-		<Drawer
-			className={clsx([styles._local, 'fixed'])}
+        (<Drawer
+			rootClassName={clsx([styles._local, 'fixed'])}
 			width='auto'
 			open={visible}
 			mask={mask}
@@ -34,11 +34,11 @@ const Index = (props: IPropsModalWrap) => {
 			getContainer={false}
 			bodyStyle={{ padding: 0 }}
 		>
-			<div className='__open_modal_content_wrap' style={{ width }} ref={ref}>
+            <div className='__open_modal_content_wrap' style={{ width }} ref={ref}>
 				{children}
 			</div>
-		</Drawer>
-	)
+        </Drawer>)
+    );
 }
 
 export default window.$app.memo(Index)

@@ -91,7 +91,7 @@ const Index = (props: IProps) => {
 	}, [props.data])
 
 	return (
-		<Drawer
+        (<Drawer
 			title={getTitle()}
 			placement='right'
 			closable={false}
@@ -101,23 +101,23 @@ const Index = (props: IProps) => {
 			afterOpenChange={props.afterOpenChange}
 			open={props.open}
 			getContainer={false}
-			className={clsx(styles._local)}
+			rootClassName={clsx(styles._local)}
 			maskClassName='mask'
 			width={props.width || '36%'}
-			style={{ position: props.fixed ? 'fixed' : 'absolute', zIndex: props.fixed ? 101 : 99 }}
+			rootStyle={{ position: props.fixed ? 'fixed' : 'absolute', zIndex: props.fixed ? 101 : 99 }}
 		>
-			<If condition={props.children != undefined}>
+            <If condition={props.children != undefined}>
 				<Then>{props.children}</Then>
 			</If>
-			<If condition={type != undefined}>
+            <If condition={type != undefined}>
 				<Then>
 					{type?.props?.map((section, index) => (
 						<Section id={id} key={index} section={section} onChange={onChange} data={data} />
 					))}
 				</Then>
 			</If>
-		</Drawer>
-	)
+        </Drawer>)
+    );
 }
 
 export default window.$app.memo(Index)

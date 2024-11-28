@@ -15,8 +15,8 @@ const Index = (props: IPropsReferenceFloatContentItem) => {
 	const [visible_flat_content, { toggle }] = useToggle(false)
 
 	return (
-		<Fragment>
-			<button
+        (<Fragment>
+            <button
 				className={clsx([
 					styles.button,
 					styles.float,
@@ -26,8 +26,8 @@ const Index = (props: IPropsReferenceFloatContentItem) => {
 			>
 				{item.name}
 			</button>
-			<Drawer
-				className={styles.drawer}
+            <Drawer
+				rootClassName={styles.drawer}
 				open={visible_flat_content}
 				getContainer={container.current!}
 				width='81%'
@@ -57,8 +57,8 @@ const Index = (props: IPropsReferenceFloatContentItem) => {
 					<Case condition={!!item?.payload?.Page}></Case>
 				</Switch>
 			</Drawer>
-		</Fragment>
-	)
+        </Fragment>)
+    );
 }
 
 export default window.$app.memo(Index)
