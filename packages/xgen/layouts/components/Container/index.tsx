@@ -19,7 +19,7 @@ const Index = (props: IPropsContainer & { children: React.ReactNode }) => {
 				history.location.pathname.indexOf('/iframe') !== -1 ? styles.iframe : ''
 			])}
 		>
-			<div className='content_wrap w_100 border_box' style={{ paddingBottom: 90 }}>
+			<div className='content_wrap w_100 border_box' /*style={{ paddingBottom: 90 }}*/>
 				<ErrorCatcher>{children}</ErrorCatcher>
 			</div>
 		</div>
