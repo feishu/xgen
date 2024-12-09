@@ -96,6 +96,7 @@
             "url-pattern": "^1.0.3",
             "vfile": "^5.3.7",
             "amis": "^6.10.0",
+            "amis-core": "^6.10.0",
             "amis-formula": "^6.10.0",
             "amis-ui": "^6.10.0"
       },

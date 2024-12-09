@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type { Global, Response } from '@/types'
-import { attachmentAdpator, makeTranslator } from 'amis'
+import { makeTranslator, attachmentAdpator } from 'amis-core'
 export const amisRequest = (api,locale:string) => {
     const { method, url, data } = api
     const check = (response, api) => {
