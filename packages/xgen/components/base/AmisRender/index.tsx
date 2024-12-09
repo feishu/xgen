@@ -21,7 +21,7 @@ const Index = ({schema, className = ''}) => {
 
     const options: RenderOptions = {
         enableAMISDebug: true,
-        fetcher: ({url, method, data}) => amisRequest(url, method, data),
+        fetcher: (api) => amisRequest(api,localeValue),
         updateLocation: (location, replace) => {
             replace || history.push(location)
         },
