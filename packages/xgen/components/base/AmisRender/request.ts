@@ -8,7 +8,7 @@ export const amisRequest = (api,locale:string) => {
         const __ = makeTranslator(locale || 'zh-CN');
         let _response  = { 
             data : { 
-                status: response && (response.data?.code || response?.code) || 200,
+                status: (response && (response.data?.code || response?.code || response?.status)) ?? 0,
                 msg: response && (response.data?.message || response.data?.msg || response.message || response.msg) || "处理成功",
                 data: response && (response.data === undefined || response.data === null || response.data === '') ? response : response.data 
             } 
