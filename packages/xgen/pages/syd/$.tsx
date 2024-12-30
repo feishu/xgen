@@ -9,18 +9,23 @@ import { Page } from '@/components'
 
 /** Dynamically forward to the components */
 const Index = () => {
-	const locale = getLocale()
-	const [params] = useSearchParams()
-	const search_params = Object.fromEntries(params)
-	const { moduleId, pageId = 'index', param0, param1, param2 } = useMatch<Global.AnyObject>(
-		/^\/syd\/([^\/]+)\/([^\/]+)(?:\/([^\/]+))?(?:\/([^\/]+))?(?:\/([^\/]+))?/,
-		['moduleId', 'pageId', 'param0', 'param1', 'param2']
+	// const locale = getLocale()
+	// const [params] = useSearchParams()
+	// const search_params = Object.fromEntries(params)
+	let { moduleId, pageId , param } = useMatch<Global.AnyObject>(
+		/^\/syd\/([^/]+)((?:\/[^/]+)*?)\/?([^/]+)?$/,
+		['moduleId', 'pageId', 'param']
 	)
 
-	const [schema,setSchema] = useState({type:"page",body:{}})
+	if(pageId === null || pageId === undefined || pageId === '') {
+		pageId = param ?? 'index'
+	}
+	
+
+	const [schema,setSchema] = useState({type:"page",body:{}, full:false })
 	const [loading, setLoading] = useState(true)	
 	const getPageSchema = () => {
-		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}/${pageId}`,{ param0, param1, param2 })
+		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}/${pageId}`,{ params: param })
 	}	
 
 	// 初始化获取所有页面信息
