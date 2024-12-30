@@ -18,9 +18,9 @@ const Index = () => {
 	)
 	const menuIndex = pageId && pageId.indexOf('/_menu/')
 	if (menuIndex !== -1) {
-		pageId = pageId.substr(0, menuIndex - 1)
+		pageId = pageId.substr(0, menuIndex)
 	}
-	
+
 	const [schema,setSchema] = useState({type:"page",body:{}, full:false })
 	const [loading, setLoading] = useState(true)	
 	const getPageSchema = () => {
