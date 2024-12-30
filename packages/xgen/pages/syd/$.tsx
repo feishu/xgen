@@ -16,7 +16,7 @@ const Index = () => {
 		/^\/syd\/([^/]+)(?:\/(.*?))?(?:\/([^/]+))?$/,
 		['moduleId', 'pageId', 'param']
 	)
-	const menuIndex = pageId && pageId.indexOf('/_menu/')
+	const menuIndex = pageId && pageId.indexOf('/_menu')
 	if (menuIndex !== -1) {
 		pageId = pageId.substr(0, menuIndex)
 	}
