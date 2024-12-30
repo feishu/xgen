@@ -12,11 +12,15 @@ const Index = () => {
 	// const locale = getLocale()
 	// const [params] = useSearchParams()
 	// const search_params = Object.fromEntries(params)
-	const { moduleId, pageId = 'index' , param } = useMatch<Global.AnyObject>(
+	let { moduleId, pageId = 'index' , param } = useMatch<Global.AnyObject>(
 		/^\/syd\/([^/]+)(?:\/(.*?))?(?:\/([^/]+))?$/,
 		['moduleId', 'pageId', 'param']
 	)
-
+	const menuIndex = pageId && pageId.indexOf('/_menu/')
+	if (menuIndex !== -1) {
+		pageId = pageId.substr(0, menuIndex - 1)
+	}
+	
 	const [schema,setSchema] = useState({type:"page",body:{}, full:false })
 	const [loading, setLoading] = useState(true)	
 	const getPageSchema = () => {
