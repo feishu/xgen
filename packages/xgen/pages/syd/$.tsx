@@ -12,15 +12,10 @@ const Index = () => {
 	// const locale = getLocale()
 	// const [params] = useSearchParams()
 	// const search_params = Object.fromEntries(params)
-	let { moduleId, pageId , param } = useMatch<Global.AnyObject>(
-		/^\/syd\/([^/]+)((?:\/[^/]+)*?)\/?([^/]+)?$/,
+	const { moduleId, pageId = 'index' , param } = useMatch<Global.AnyObject>(
+		/^\/syd\/([^/]+)(?:\/(.*?))?(?:\/([^/]+))?$/,
 		['moduleId', 'pageId', 'param']
 	)
-
-	if(pageId === null || pageId === undefined || pageId === '') {
-		pageId = param ?? 'index'
-	}
-	
 
 	const [schema,setSchema] = useState({type:"page",body:{}, full:false })
 	const [loading, setLoading] = useState(true)	
