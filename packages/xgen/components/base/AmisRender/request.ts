@@ -55,9 +55,11 @@ export const amisRequest = (api, locale: string) => {
     .then(check)
     .catch((err) => {
       try {
-        return JSON.parse(err.message)
+        const { response } =  err
+        let message = response && (response.data?.message || response.data?.msg || response.message || response.msg)
+        return JSON.parse(message)
       } catch (error) {
-        return err.message
+        return message || err.message
       }
     })
 }

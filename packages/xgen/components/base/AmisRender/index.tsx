@@ -85,7 +85,7 @@ const Index = ({ schema, className = '' }) => {
       const conf: any = { position: 'top-right' }
       if (typeof msg !== 'string') {
         Object.assign(conf, msg.conf)
-        msg = msg?.body
+        msg = msg?.body ?? msg.msg ?? msg.message
       }
 
       if (!msg?.length) {
