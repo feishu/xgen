@@ -54,7 +54,6 @@ export const amisRequest = (api, locale: string) => {
   return axios[method]<Global.AnyObject, Response<Global.AnyObject>>(url, data)
     .then(check)
     .catch((err) => {
-      message.error(err.message || err.msg)
-      return Promise.reject(err)
+      return err.message || err.msg
     })
 }
