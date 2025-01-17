@@ -1,7 +1,6 @@
 import axios from 'axios'
 import type { Global, Response } from '@/types'
 import { makeTranslator, attachmentAdpator } from 'amis-core'
-import { message } from 'antd'
 export const amisRequest = (api, locale: string) => {
   const { method, url, data } = api
   const check = (response, api) => {
@@ -54,12 +53,6 @@ export const amisRequest = (api, locale: string) => {
   return axios[method]<Global.AnyObject, Response<Global.AnyObject>>(url, data)
     .then(check)
     .catch((err) => {
-      try {
-        const { response } =  err
-        let message = response && (response.data?.message || response.data?.msg || response.message || response.msg)
-        return JSON.parse(message)
-      } catch (error) {
-        return message || err.message
-      }
+      return check(err.response, url)
     })
 }
