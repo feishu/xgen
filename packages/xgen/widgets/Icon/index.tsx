@@ -44,6 +44,10 @@ const Index = (props: IProps) => {
 		if (name.indexOf('material-') !== -1) {
 			return { type: 'material', name: name.replace(/^material-/, '') }
 		}
+
+		if (name.indexOf('fa-') !== -1) {
+			return { type: `fa ${name}`, name: '' }
+		}
 		const arr = name.split('-')
 		const type = arr.pop()
 		return {
