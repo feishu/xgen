@@ -61,7 +61,7 @@ const Index = (props: IProps) => {
 	}
 
 	return (
-		<i className={clsx(['Icon', md.type, className])} style={{ ...style, ...props.style }} onClick={onClick}>
+		<i className={clsx([md.type.indexOf('fa-') !== -1 ? 'Icon' : '', md.type, className])} style={{ ...style, ...props.style }} onClick={onClick}>
 			{md.name}
 		</i>
 	)
