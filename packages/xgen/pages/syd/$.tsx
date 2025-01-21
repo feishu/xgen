@@ -5,8 +5,7 @@ import axios from 'axios'
 import { useEffect, useState } from 'react'
 import type { Global, Response } from '@/types'
 import AmisRender from '@/components/base/AmisRender'
-import { Page } from '@/components'
-import { Else, If, Then } from 'react-if'
+import { BasePage } from '@/components'
 
 /** Dynamically forward to the components */
 const Index = () => {
@@ -47,18 +46,15 @@ const Index = () => {
 
 	if (!moduleId) history.push('/404')
 	const { title, full, header = true } = schema
-	return (
-		<If condition={header}>
-			<Then>
-				<Page title={title} className='w_100' full={full} withRows>
-					<AmisRender schema={schema} />
-				</Page>
-			</Then>
-			<Else>
+	if (header === true) {
+		return (
+			<BasePage title={title} className='w_100' full={full} withRows>
 				<AmisRender schema={schema} />
-			</Else>
-		</If>
-	)
+			</BasePage>
+		)
+	} else {
+		return (<AmisRender schema={schema} />)
+	}
 }
 
-export default Index
+export default window.$app.memo(Index)

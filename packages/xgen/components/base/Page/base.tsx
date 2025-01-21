@@ -1,47 +1,24 @@
 import { useMemoizedFn, useTitle } from 'ahooks'
 import clsx from 'clsx'
-import { toJS } from 'mobx'
 import { observer } from 'mobx-react-lite'
-
 import { useGlobal } from '@/context/app'
-
-import Actions from './components/Actions'
-import Left from './components/Left'
-import { usePageTitle } from './hooks'
 import styles from './index.less'
-
+import Left from './components/Left'
 import type { CSSProperties } from 'react'
 import type { IProps, IPropsLeft } from './types'
-import DevControls from './components/DevControls'
-import { Else, If, Then } from 'react-if'
+import { getItemBy } from '@/utils'
 
 const Index = (props: IProps) => {
-	const {
-		children,
-		title: page_title,
-		className,
-		style,
-		actions = [],
-		withRows,
-		customAction,
-		full,
-		type,
-		formActions
-	} = props
+	const { children, title: page_title, className, style, withRows, full } = props
 	const global = useGlobal()
 	const { layout } = global
-	const title = page_title ?? usePageTitle(toJS(global.menu), toJS(global.menu_key_path), global.current_nav)
-
-	const appEnableXterm =
-		global.app_info?.mode == 'development' && global.app_info?.optional?.devControls?.enableXterm
-	const appEnableAIEdit =
-		global.app_info?.mode == 'development' && global.app_info?.optional?.devControls?.enableAIEdit
-
-	const enableXterm = props.enableXterm ?? appEnableXterm
-	const enableAIEdit = props.enableAIEdit ?? appEnableAIEdit
+	let title = page_title
+	if( !page_title && global.menu.length >=  global.current_nav + 1){
+		const menuItem = global.menu[global.current_nav]?.children || []
+		title = menuItem.length > 0 ? getItemBy('key',menuItem || [], global.menu_key_path)?.name ?? '' : global.menu[global.current_nav].name
+	}
 
 	useTitle(`${global.app_info.name} - ${global.menu[global.current_nav]?.name} - ${title}`)
-
 	const toggleVisibleMenu = useMemoizedFn(() => (global.visible_menu = !global.visible_menu))
 	const props_left: IPropsLeft = {
 		title,
@@ -74,25 +51,8 @@ const Index = (props: IProps) => {
 					])}
 				>
 					<Left {...props_left}></Left>
-					<div className='options_wrap flex align_center'>
-						{customAction}
-
-						<If condition={type != 'Form'}>
-							<Then>
-								<Actions actions={actions}></Actions>
-							</Then>
-							<Else>{formActions}</Else>
-						</If>
-
-						{layout == 'Admin' && (
-							<DevControls
-								enableXterm={enableXterm}
-								enableAIEdit={enableAIEdit}
-							></DevControls>
-						)}
-					</div>
 				</header>
-				<div className='page_wrap'>{children}</div>
+				<div className='ml-2 mr-2'>{children}</div>
 			</div>
 		</div>
 	)
