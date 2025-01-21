@@ -36,6 +36,8 @@ const Index = () => {
 					schema.full = false
 				setSchema(res)
 			}
+		}).catch(res=>{
+			res.code === 404 && history.push('/404')
 		})
 	  }, [moduleId,pageId])
 
