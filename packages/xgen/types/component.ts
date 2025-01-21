@@ -46,6 +46,12 @@ export declare namespace Component {
 		onSave: (v: any) => void
 	}
 
+	interface PropsChatComponent {
+		id?: string
+		text?: string
+		[key: string]: any
+	}
+
 	interface PropsChartComponent extends Omit<Props, '__namespace' | '__primary' | '__data_item'> {}
 
 	interface Params {
