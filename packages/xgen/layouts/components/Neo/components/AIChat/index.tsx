@@ -267,7 +267,6 @@ const AIChat = (props: AIChatProps) => {
 				addAttachment(attachment)
 
 				const result = await uploadFile(file)
-
 				const updatedAttachment: App.ChatAttachment = {
 					...attachment,
 					status: 'done',
@@ -277,7 +276,8 @@ const AIChat = (props: AIChatProps) => {
 					bytes: result.bytes,
 					created_at: result.created_at,
 					filename: result.filename,
-					content_type: result.content_type
+					content_type: result.content_type,
+					description: result.description || null
 				}
 
 				removeAttachment(attachment)
@@ -411,6 +411,9 @@ const AIChat = (props: AIChatProps) => {
 	})
 
 	const [optimizing, setOptimizing] = useState(false)
+
+	// Add check for uploading files
+	const hasUploadingFiles = attachments.some((attachment) => attachment.status === 'uploading')
 
 	// Add handleOptimize function
 	const handleOptimize = async () => {
@@ -634,7 +637,7 @@ const AIChat = (props: AIChatProps) => {
 						value={inputValue}
 						onChange={handleInputChange}
 						onSend={() => {
-							if (!loading && !optimizing) {
+							if (!loading && !optimizing && !hasUploadingFiles) {
 								handleSend()
 							}
 						}}
@@ -665,7 +668,7 @@ const AIChat = (props: AIChatProps) => {
 						}
 						className={styles.sendBtn}
 						onClick={loading ? cancel : handleSend}
-						disabled={(!loading && !inputValue.trim()) || optimizing}
+						disabled={(!loading && !inputValue.trim()) || optimizing || hasUploadingFiles}
 					/>
 				</div>
 

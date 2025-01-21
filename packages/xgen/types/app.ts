@@ -26,6 +26,8 @@ export declare namespace App {
 		| 'progress'
 		| 'page'
 		| 'widget'
+		| 'function'
+		| 'loading'
 
 	type ChatCmd = {
 		id: string
@@ -76,10 +78,17 @@ export declare namespace App {
 
 	type ChatAI = {
 		is_neo: boolean
+		is_new: boolean
 		text: string
 		type?: ChatMessageType
-		done: boolean
+		function?: string
+		arguments?: string
+		props?: Record<string, any>
+		assistant_id?: string
+		assistant_name?: string
+		assistant_avatar?: string
 		actions?: Array<Action.ActionParams>
+		done: boolean
 	}
 
 	type ChatHuman = {
@@ -107,6 +116,9 @@ export declare namespace App {
 		history: Array<{
 			role: string
 			content: string
+			assistant_id?: string
+			assistant_name?: string
+			assistant_avatar?: string
 			[key: string]: any
 		}>
 	}
@@ -115,7 +127,10 @@ export declare namespace App {
 		command?: ChatCmd
 		data: Array<{
 			content: string
-			role: 'user' | 'assistant'
+			role: 'user' | 'assistant' | 'system'
+			assistant_id?: string
+			assistant_name?: string
+			assistant_avatar?: string
 		}>
 	}
 
@@ -288,6 +303,7 @@ export declare namespace App {
 		thumbUrl?: string
 		blob?: Blob
 		pinned?: boolean
+		description?: string
 	}
 
 	/** Options for creating a new chat */

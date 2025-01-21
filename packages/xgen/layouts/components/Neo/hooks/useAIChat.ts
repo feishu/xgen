@@ -131,22 +131,51 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 	}, [global.app_info.optional?.neo?.api])
 
 	/** Format chat message **/
-	const formatMessage = useMemoizedFn((role: string, content: string, chatId: string) => {
-		const baseMessage = { is_neo: role === 'assistant', context: { chat_id: chatId, assistant_id } }
+	const formatMessage = useMemoizedFn(
+		(
+			role: string,
+			content: string,
+			chatId: string,
+			assistant_id?: string,
+			assistant_name?: string,
+			assistant_avatar?: string
+		) => {
+			const baseMessage = {
+				is_neo: role === 'assistant',
+				context: { chat_id: chatId, assistant_id },
+				assistant_name,
+				assistant_avatar
+			}
 
-		// Check if content is potentially JSON
-		const trimmedContent = content.trim()
-		if (!trimmedContent.startsWith('{')) {
-			return { ...baseMessage, text: content }
-		}
+			// Check if content is potentially JSON
+			const trimmedContent = content.trim()
 
-		try {
-			const parsedContent = JSON.parse(trimmedContent)
-			return { ...baseMessage, ...parsedContent }
-		} catch (e) {
-			return { ...baseMessage, text: content }
+			// Check if content is potentially JSON Array
+			if (trimmedContent.startsWith('[{')) {
+				try {
+					const parsedContent = JSON.parse(trimmedContent)
+					const res: App.ChatInfo[] = []
+					parsedContent.forEach((item: any) => {
+						res.push({ ...baseMessage, ...item })
+					})
+					return res
+				} catch (e) {
+					return [{ ...baseMessage, text: content }]
+				}
+
+				// Check if content is potentially JSON Object
+			} else if (trimmedContent.startsWith('{')) {
+				try {
+					const parsedContent = JSON.parse(trimmedContent)
+					return [{ ...baseMessage, ...parsedContent }]
+				} catch (e) {
+					return [{ ...baseMessage, text: content }]
+				}
+			}
+
+			return [{ ...baseMessage, text: content }]
 		}
-	})
+	)
 
 	/** Get AI Chat History **/
 	const getHistory = useMemoizedFn(async () => {
@@ -159,7 +188,13 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		if (err) return
 		if (!res?.data) return
 
-		setMessages(res.data.map(({ role, content }) => formatMessage(role, content, chat_id)))
+		const formattedMessages: App.ChatInfo[] = []
+		res.data.forEach(({ role, content, assistant_id, assistant_name, assistant_avatar }) => {
+			formattedMessages.push(
+				...formatMessage(role, content, chat_id, assistant_id, assistant_name, assistant_avatar)
+			)
+		})
+		setMessages(formattedMessages)
 	})
 
 	/** Handle title generation with progress updates **/
@@ -218,7 +253,8 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 					created_at: attachment.created_at,
 					file_id: attachment.file_id,
 					chat_id: attachment.chat_id,
-					assistant_id: attachment.assistant_id
+					assistant_id: attachment.assistant_id,
+					description: attachment.description || undefined
 				})
 			})
 		}
@@ -257,6 +293,8 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 					credentials: 'include',
 					headers: { Accept: 'application/json' }
 				})
+				if (response.status == 200 || response.status == 201) return
+
 				const data = await response.json().catch(() => ({ message: `HTTP ${response.status}` }))
 
 				let errorMessage = 'Network error, please try again later'
@@ -311,8 +349,27 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 				const formated_data = ntry(() => JSON.parse(data)) as App.ChatAI
 				if (!formated_data) return
 
-				const { text, type, actions, done } = formated_data
+				// data format handle
+				const {
+					text,
+					props,
+					type,
+					actions,
+					done,
+					assistant_id,
+					assistant_name,
+					assistant_avatar,
+					is_new
+				} = formated_data
 				const current_answer = messages[messages.length - 1] as App.ChatAI
+
+				// Set assistant info
+				if (assistant_id) current_answer.assistant_id = assistant_id
+				if (assistant_name) current_answer.assistant_name = assistant_name
+				if (assistant_avatar) current_answer.assistant_avatar = assistant_avatar
+				if (is_new) current_answer.is_new = is_new
+				current_answer.type = type || 'text'
+
 				if (done) {
 					if (text) {
 						current_answer.text = text
@@ -320,6 +377,12 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 					if (type) {
 						current_answer.type = type
 					}
+
+					if (props) {
+						current_answer.props = props
+					}
+
+					console.log(`done`, current_answer)
 
 					// If is the first message, generate title using SSE
 					if (messages.length === 2 && chat_id && current_answer.text) {
@@ -334,12 +397,21 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 					return
 				}
 
-				if (!text) return
-				if (text.startsWith('\r')) {
-					current_answer.text = text.replace('\r', '')
-				} else {
-					current_answer.text = current_answer.text + text
+				if (!text && !props) return
+				if (props) {
+					current_answer.props = props
 				}
+
+				if (text) {
+					if (text.startsWith('\r')) {
+						current_answer.text = text.replace('\r', '')
+					} else {
+						current_answer.text = current_answer.text + text
+					}
+				}
+
+				console.log(current_answer)
+
 				const message_new = [...messages]
 				if (message_new.length > 0) {
 					message_new[message_new.length - 1] = { ...current_answer }
@@ -380,7 +452,7 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 	}, [])
 
 	/** Upload files to Neo API **/
-	const uploadFile = useMemoizedFn(async (file: RcFile) => {
+	const uploadFile = useMemoizedFn(async (file: RcFile, handleVision: boolean = true) => {
 		const controller = new AbortController()
 		uploadControllers.current.set(file.name, controller)
 
@@ -391,6 +463,7 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		// Default options
 		const options = {
 			process_image: false,
+			vision: handleVision,
 			max_file_size: 10, // 10MB
 			allowed_types: ['image/*', '.pdf', '.doc', '.docx', '.txt'],
 			...upload_options
@@ -608,7 +681,12 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		if (!res?.data) return null
 
 		const chatInfo = res.data
-		const formattedMessages = chatInfo.history.map(({ role, content }) => formatMessage(role, content, chatId))
+		const formattedMessages: App.ChatInfo[] = []
+		chatInfo.history.forEach(({ role, content, assistant_id, assistant_name, assistant_avatar }) => {
+			formattedMessages.push(
+				...formatMessage(role, content, chat_id || '', assistant_id, assistant_name, assistant_avatar)
+			)
+		})
 
 		// Set messages directly in getChat
 		setMessages(formattedMessages)
