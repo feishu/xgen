@@ -92,7 +92,7 @@ const Index = (props: IProps) => {
 						)}
 					</div>
 				</header>
-				<div className='page_wrap'>{children}</div>
+				<div className='ml-2 mr-2'>{children}</div>
 			</div>
 		</div>
 	)
