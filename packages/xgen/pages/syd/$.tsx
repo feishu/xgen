@@ -28,7 +28,7 @@ const Index = () => {
 	const [schema, setSchema] = useState({ type: "page", body: {}, full: false })
 	const [loading, setLoading] = useState(true)
 	const getPageSchema = () => {
-		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}/${pageId}`, { params: param })
+		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}${pageId}`, { params: param })
 	}
 
 	// 初始化获取所有页面信息
