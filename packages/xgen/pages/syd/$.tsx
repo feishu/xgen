@@ -16,10 +16,14 @@ const Index = () => {
 		/^\/syd\/([^/]+)(?:\/(.*?))?(?:\/([^/]+))?$/,
 		['moduleId', 'pageId', 'param']
 	)
+
+	if (pageId.startsWith('/') === false) pageId = `/${pageId}`
 	const menuIndex = pageId && pageId.indexOf('/_menu')
 	if (menuIndex !== -1) {
 		pageId = pageId.substr(0, menuIndex)
 	}
+	
+	if (!pageId) pageId = 'index'
 
 	const [schema, setSchema] = useState({ type: "page", body: {}, full: false })
 	const [loading, setLoading] = useState(true)

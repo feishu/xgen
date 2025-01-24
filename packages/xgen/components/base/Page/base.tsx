@@ -15,7 +15,7 @@ const Index = (props: IProps) => {
 	let title = page_title
 	if( !page_title && global.menu.length >=  global.current_nav + 1){
 		const menuItem = global.menu[global.current_nav]?.children || []
-		title = menuItem.length > 0 ? getItemBy('key',menuItem || [], global.menu_key_path)?.name ?? '' : global.menu[global.current_nav].name
+		title = menuItem.length > 0 ? getItemBy('key',menuItem || [], global.menu_key_path)?.name ?? '' : global.menu[global.current_nav]?.name
 	}
 
 	useTitle(`${global.app_info.name} - ${global.menu[global.current_nav]?.name} - ${title}`)
