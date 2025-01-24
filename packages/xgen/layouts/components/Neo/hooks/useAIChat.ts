@@ -9,6 +9,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { message as message_ } from 'antd'
 import { RcFile } from 'antd/es/upload'
 import { getLocale } from '@umijs/max'
+import type { Action } from '@/types'
+import { useAction } from '@/actions'
 
 type Args = {
 	/** the assistant id to use for the chat **/
@@ -118,6 +120,7 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 
 	const locale = getLocale()
 	const is_cn = locale === 'zh-CN'
+	const onAction = useAction()
 
 	// Add new state for title generation loading
 	const [titleGenerating, setTitleGenerating] = useState(false)
@@ -143,6 +146,7 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 			const baseMessage = {
 				is_neo: role === 'assistant',
 				context: { chat_id: chatId, assistant_id },
+				assistant_id,
 				assistant_name,
 				assistant_avatar
 			}
@@ -334,7 +338,57 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 			setLoading(false)
 		}
 
+		function isFirstMessage(messages: App.ChatInfo[]) {
+			if (messages.length < 2) return false
+
+			// The first message is a user message
+			// The second message is an assistant message
+			// The rest of the messages are total assistant messages
+			const userMessage = messages[0]
+			const assistantMessage = messages[1]
+			if (messages.length === 2) {
+				return userMessage && assistantMessage
+			}
+
+			// The rest of the messages are total assistant messages
+			let resetUserMessageCount = 0
+			for (let i = 2; i < messages.length; i++) {
+				const message = messages[i]
+				if (!message.is_neo) {
+					resetUserMessageCount++
+				}
+
+				if (resetUserMessageCount > 0) {
+					return false
+				}
+			}
+
+			return true
+		}
+
+		// Run action with namespace, primary, data_item, extra
+		function runAction(
+			action: Array<Action.ActionParams>,
+			namespace: string,
+			primary: string,
+			data_item: any,
+			extra?: any
+		) {
+			try {
+				onAction({ namespace, primary, data_item, it: { action, title: '', icon: '' }, extra })
+			} catch (err) {
+				console.error('Failed to run action:', err)
+			}
+		}
+
 		function setupEventSource() {
+			// Save last assistant info
+			const last_assistant: {
+				assistant_id: string | null
+				assistant_name: string | null
+				assistant_avatar: string | null
+			} = { assistant_id: null, assistant_name: null, assistant_avatar: null }
+
 			// Close existing connection if any
 			event_source.current?.close()
 
@@ -354,22 +408,79 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 					text,
 					props,
 					type,
-					actions,
 					done,
 					assistant_id,
 					assistant_name,
 					assistant_avatar,
-					is_new
+					new: is_new
 				} = formated_data
-				const current_answer = messages[messages.length - 1] as App.ChatAI
+
+				// Action message (action call)
+				if (type === 'action') {
+					const { namespace, primary, data_item, action, extra } = props || {}
+					if (!action) {
+						console.error('No actions found')
+						if (done) {
+							setLoading(false)
+							es.close()
+						}
+						return
+					}
+
+					if (!Array.isArray(action)) {
+						console.error('Action is not an array')
+						if (done) {
+							setLoading(false)
+							es.close()
+						}
+						return
+					}
+
+					// Close event source if done
+					if (done) {
+						setLoading(false)
+						es.close()
+
+						// If is the first message, generate title using SSE
+						if (isFirstMessage(messages) && chat_id) {
+							handleTitleGeneration(messages, chat_id)
+						}
+					}
+
+					// Run action
+					runAction(
+						action as Array<Action.ActionParams>,
+						namespace || 'chat',
+						primary || 'id',
+						data_item || {},
+						extra
+					)
+					return
+				}
+
+				// create new message if is_new is true
+				if (is_new) {
+					messages.push({ ...formated_data, is_neo: true })
+				}
 
 				// Set assistant info
-				if (assistant_id) current_answer.assistant_id = assistant_id
-				if (assistant_name) current_answer.assistant_name = assistant_name
-				if (assistant_avatar) current_answer.assistant_avatar = assistant_avatar
-				if (is_new) current_answer.is_new = is_new
-				current_answer.type = type || 'text'
+				const current_answer = messages[messages.length - 1] as App.ChatAI
+				if (assistant_id) {
+					last_assistant.assistant_id = assistant_id
+				}
+				if (assistant_name) {
+					last_assistant.assistant_name = assistant_name
+				}
+				if (assistant_avatar) {
+					last_assistant.assistant_avatar = assistant_avatar
+				}
 
+				if (is_new) current_answer.new = is_new
+				current_answer.assistant_id = last_assistant.assistant_id || undefined
+				current_answer.assistant_name = last_assistant.assistant_name || undefined
+				current_answer.assistant_avatar = last_assistant.assistant_avatar || undefined
+
+				current_answer.type = type || 'text'
 				if (done) {
 					if (text) {
 						current_answer.text = text
@@ -382,14 +493,11 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 						current_answer.props = props
 					}
 
-					console.log(`done`, current_answer)
-
 					// If is the first message, generate title using SSE
-					if (messages.length === 2 && chat_id && current_answer.text) {
+					if (isFirstMessage(messages) && chat_id) {
 						handleTitleGeneration(messages, chat_id)
 					}
 
-					current_answer.actions = actions
 					setMessages([...messages])
 					setLoading(false)
 
@@ -409,8 +517,6 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 						current_answer.text = current_answer.text + text
 					}
 				}
-
-				console.log(current_answer)
 
 				const message_new = [...messages]
 				if (message_new.length > 0) {
@@ -940,6 +1046,18 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		return res?.data || { data: [], page: 1, pagesize: 10, total: 0, last_page: 1 }
 	})
 
+	/** Call Assistant API */
+	const callAssistantAPI = useMemoizedFn(
+		async (assistantId: string, name: string, payload: Record<string, any>) => {
+			if (!neo_api) return null
+			const endpoint = `${neo_api}/assistants/${assistantId}/call?token=${encodeURIComponent(getToken())}`
+			const [err, res] = await to<{ data: any }>(axios.post(endpoint, { name, payload }))
+			if (err) throw err
+
+			return res || null
+		}
+	)
+
 	/** Find Assistant Detail */
 	const findAssistant = useMemoizedFn(async (assistantId: string) => {
 		if (!neo_api) return null
@@ -1005,6 +1123,7 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		findAssistant,
 		saveAssistant,
 		deleteAssistant,
+		callAssistantAPI,
 		setPendingCleanup
 	}
 }
