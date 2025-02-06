@@ -45,13 +45,14 @@ const AIChat = (props: AIChatProps) => {
 	const is_cn = locale === 'zh-CN'
 	const stack = global.stack.paths.join('/')
 
-	const { onSend, onClose, onNew, className, botAvatar, header, headerButtons, upload_options } = props
+	const { onSend, onClose, onNew, className, header, headerButtons, upload_options } = props
 	const [inputValue, setInputValue] = useState('')
 	const messagesEndRef = useRef<HTMLDivElement>(null)
-	const [chat_id, setChatId] = useState(global.neo.chat_id || 'hello')
+	const [chat_id, setChatId] = useState(global.neo.chat_id || '')
 	const [assistant_id, setAssistantId] = useState(global.neo.assistant_id)
 	const [currentPage, setCurrentPage] = useState(pathname.replace(/\/_menu.*/gi, '').toLowerCase())
 	const [initialized, setInitialized] = useState(false)
+	const [placeholder, setPlaceholder] = useState<App.ChatPlaceholder | undefined>(global.neo.placeholder)
 
 	const {
 		messages,
@@ -67,8 +68,10 @@ const AIChat = (props: AIChatProps) => {
 		formatFileName,
 		setAttachments,
 		getChat,
+		getLatestChat,
 		generatePrompts,
-		setPendingCleanup
+		setPendingCleanup,
+		makeChatID
 	} = useAIChat({ chat_id, upload_options })
 	const [chat_context, setChatContext] = useState<App.ChatContext>({ placeholder: '', signal: '' })
 
@@ -113,8 +116,17 @@ const AIChat = (props: AIChatProps) => {
 	// Load chat details when initialized
 	useEffect(() => {
 		const loadChat = async () => {
-			if (!initialized && chat_id) {
+			if (!initialized && chat_id != '') {
 				await getChat()
+				setInitialized(true)
+			}
+
+			// New chat
+			if (!initialized && !chat_id) {
+				// if res is not null, create a new chat
+				const res = await getLatestChat(assistant_id)
+				res && !res.exist && handleNewChat(res) // new chat
+				res && res.exist && setChatId(res.chat_id) // existing chat
 				setInitialized(true)
 			}
 		}
@@ -189,12 +201,21 @@ const AIChat = (props: AIChatProps) => {
 	}, [pathname])
 
 	const handleNewChat = (options?: App.NewChatOptions) => {
-		const new_chat_id = `chat_${Date.now()}`
+		const new_chat_id = options?.chat_id || makeChatID()
 		setChatId(new_chat_id)
 		setMessages([])
 		setAttachments([])
 		global.setNeoChatId(new_chat_id)
-		setTitle(is_cn ? '未命名' : 'Untitled')
+
+		// Set placeholder
+		if (options?.placeholder) {
+			setPlaceholder(options?.placeholder)
+			global.setNeoPlaceholder(options?.placeholder)
+		}
+
+		// Title
+		const title = options?.placeholder?.title || (is_cn ? '新对话' : 'New Chat')
+		setTitle(title)
 
 		if (options?.content) {
 			setInputValue(options.content)
@@ -428,6 +449,13 @@ const AIChat = (props: AIChatProps) => {
 					if (typeof text === 'string' && text.trim()) {
 						setInputValue(text)
 					}
+				},
+				onComplete: (text) => {
+					// Remove <think>....</think>
+					const parts = text.split('</think>')
+					if (parts.length > 1) {
+						setInputValue(parts[1].trim())
+					}
 				}
 			})
 
@@ -479,6 +507,36 @@ const AIChat = (props: AIChatProps) => {
 								className={styles.spinner}
 							/>
 							<span>{is_cn ? '加载历史消息...' : 'Loading message history...'}</span>
+						</div>
+					) : messages.length === 0 ? (
+						<div className={styles.placeholder}>
+							{placeholder?.description && (
+								<div className={styles.description}>{placeholder.description}</div>
+							)}
+							{placeholder?.prompts && placeholder.prompts.length > 0 && (
+								<div className={styles.prompts}>
+									<div className={styles.promptsHint}>
+										{is_cn ? '尝试这样问我' : 'Try asking me like this'}
+									</div>
+									{placeholder.prompts.map((prompt, index) => (
+										<div
+											key={index}
+											className={styles.promptItem}
+											onClick={() => {
+												setInputValue(prompt)
+												focusRef.current?.()
+											}}
+										>
+											{prompt}
+										</div>
+									))}
+								</div>
+							)}
+							{!placeholder?.description && !placeholder?.prompts && (
+								<div className={styles.defaultPlaceholder}>
+									{is_cn ? '开始一个新的对话' : 'Start a new conversation'}
+								</div>
+							)}
 						</div>
 					) : (
 						messages.map((msg, index) => (
