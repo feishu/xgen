@@ -10,30 +10,98 @@ import { compile, run } from '@mdx-js/mdx'
 import { useMDXComponents } from '@mdx-js/react'
 import styles from './index.less'
 import Code from './Code'
+import Mermaid from './Mermaid'
+import Think from '../think'
+import Tool from '../tool'
 import type { Component } from '@/types'
+import remarkMath from 'remark-math'
+import rehypeKatex from 'rehype-katex'
 
 interface IProps extends Component.PropsChatComponent {
-	id?: string
+	chat_id: string
 	text: string
 }
 
 const components = {
-	code: Code
+	code: function (props: any) {
+		if (props?.className?.includes('language-mermaid')) {
+			const chart = props.raw || props.children || ''
+			// 预处理 Mermaid 内容
+			const processedChart = chart
+				.split('\n')
+				.map((line: string) => {
+					// 处理节点定义行
+					if (line.includes('[') && line.includes(']')) {
+						return line.replace(/\[([^\]]+)\]/g, (match, content) => {
+							// 如果内容已经被引号包裹，则不再添加引号
+							if (content.startsWith('"') && content.endsWith('"')) {
+								return `[${content}]`
+							}
+							return `["${content}"]`
+						})
+					}
+					return line
+				})
+				.filter(Boolean) // 移除空行
+				.join('\n')
+				.trim()
+
+			return <Mermaid chart={processedChart} />
+		}
+		return <Code {...props} />
+	},
+	Think: function (props: any) {
+		const { pending = 'false', chat_id } = props
+		const pendingBool = pending == 'true'
+		return (
+			<Think pending={pendingBool} chat_id={chat_id}>
+				{props.children || 'Thinking...'}
+			</Think>
+		)
+	},
+	Tool: function (props: any) {
+		const { pending = 'false', chat_id } = props
+		const pendingBool = pending == 'true'
+		return (
+			<Tool pending={pendingBool} chat_id={chat_id}>
+				{props.children || 'Calling...'}
+			</Tool>
+		)
+	}
+}
+
+const escape = (text?: string) => {
+	return text
+		?.replace(
+			/\|([^|\n]*[<>][^|\n]*)\|/g,
+			(_, content) => `|${content.replace(/[<>]/g, (match: string) => (match === '<' ? '&lt;' : '&gt;'))}|`
+		)
+		.replace(/\r/g, '') // remove \r
+		.replace(/\{/g, '\\{')
+		.replace(/\}/g, '\\}')
+		.replace(/\$\$[\n\r]+/g, '$$\n')
+		.replace(/[\n\r]+\$\$/g, '\n$$')
+}
+
+const unescape = (text?: string) => {
+	return text?.replace(/\\{/g, '{').replace(/\\}/g, '}')
 }
 
 const Index = (props: IProps) => {
-	const { text } = props
-	const [content, setContent] = useState<any>()
+	const { text, chat_id } = props
+	const [content, setContent] = useState<any>('')
 	const mdxComponents = useMDXComponents(components)
+	// console.log('text', escape(text))
 
 	useAsyncEffect(async () => {
-		const vfile = new VFile(text)
+		const vfile = new VFile(escape(text))
 		const [err, compiledSource] = await to(
 			compile(vfile, {
-				format: 'md',
+				format: 'mdx',
 				outputFormat: 'function-body',
 				providerImportSource: '@mdx-js/react',
-				remarkPlugins: [remarkGfm],
+				development: false,
+				remarkPlugins: [remarkGfm, [remarkMath, { strict: true }]],
 				rehypePlugins: [
 					() => (tree) => {
 						visit(tree, (node) => {
@@ -46,11 +114,31 @@ const Index = (props: IProps) => {
 							if (node?.type === 'element' && node?.tagName === 'pre') {
 								const [codeEl] = node.children
 								if (codeEl.tagName !== 'code') return
-								node.raw = codeEl.children?.[0].value
+								node.raw = unescape(codeEl.children?.[0].value)
+							}
+
+							if (node?.type === 'element' && ['Think', 'Tool'].includes(node?.tagName)) {
+								node.properties = Object.entries(node.properties || {}).reduce<
+									Record<string, any>
+								>((acc, [key, value]) => {
+									if (key === 'pending' && typeof value === 'string') {
+										acc[key] = value === 'true'
+									} else {
+										acc[key] = value
+									}
+									return acc
+								}, {})
 							}
 						})
 					},
-					rehypeHighlight,
+					// Replace \{ => { and \} => }
+					() => (tree) => {
+						visit(tree, (node) => {
+							if (node?.type === 'text') {
+								node.value = unescape(node.value)
+							}
+						})
+					},
 					() => (tree) => {
 						visit(tree, (node) => {
 							if (node?.type === 'element' && node?.tagName === 'pre') {
@@ -61,27 +149,47 @@ const Index = (props: IProps) => {
 								}
 							}
 						})
+					},
+					[rehypeKatex, { output: 'mathml', strict: true, throwOnError: false }],
+					rehypeHighlight.bind(null, { ignoreMissing: true }),
+
+					() => (tree) => {
+						visit(tree, (node) => {
+							// Handle mermaid code blocks
+							if (
+								node?.type === 'element' &&
+								node?.tagName === 'code' &&
+								node?.properties?.className?.includes('language-mermaid')
+							) {
+								node.properties.raw = unescape(node.children?.[0]?.value)
+							}
+						})
 					}
 				]
 			})
 		)
 
 		if (err) {
-			setContent(<div className={'error'}>{err.message}</div>)
+			console.error(`parse mdx error: ${err.message || err}`)
+			console.log(`original text:\n`, text)
 			return
 		}
 
 		if (!compiledSource) return
-		compiledSource.value = (compiledSource.value as string).replaceAll('%7B', '{')
 
-		const { default: Content } = await run(compiledSource, {
-			...JsxRuntime,
-			Fragment,
-			useMDXComponents: () => mdxComponents
-		})
-
-		setContent(Content)
-	}, [text])
+		try {
+			const { default: Content } = await run(compiledSource, {
+				...JsxRuntime,
+				Fragment,
+				useMDXComponents: () => mdxComponents,
+				chat_id
+			})
+			setContent(Content)
+		} catch (err) {
+			console.error(`run mdx error: ${err}`)
+			console.log(`original text:\n`, text)
+		}
+	}, [text, chat_id])
 
 	return <div className={styles._local}>{content}</div>
 }

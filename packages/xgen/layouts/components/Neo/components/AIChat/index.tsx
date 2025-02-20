@@ -15,6 +15,7 @@ import ChatItem from '../ChatItem'
 import { isValidUrl } from '@/utils'
 import DefaultHeader from './Header'
 import MentionTextArea from './MentionTextArea'
+import Assistant from './Assistant'
 
 interface AIChatProps {
 	messages?: App.ChatInfo[]
@@ -45,15 +46,18 @@ const AIChat = (props: AIChatProps) => {
 	const is_cn = locale === 'zh-CN'
 	const stack = global.stack.paths.join('/')
 
-	const { onSend, onClose, onNew, className, botAvatar, header, headerButtons, upload_options } = props
+	const { onSend, onClose, onNew, className, header, headerButtons, upload_options } = props
 	const [inputValue, setInputValue] = useState('')
 	const messagesEndRef = useRef<HTMLDivElement>(null)
-	const [chat_id, setChatId] = useState(global.neo.chat_id || 'hello')
-	const [assistant_id, setAssistantId] = useState(global.neo.assistant_id)
+	const [chat_id, setChatId] = useState(global.neo.chat_id || '')
+	// const [assistant_id, setAssistantId] = useState(global.neo.assistant_id)
 	const [currentPage, setCurrentPage] = useState(pathname.replace(/\/_menu.*/gi, '').toLowerCase())
 	const [initialized, setInitialized] = useState(false)
+	const [placeholder, setPlaceholder] = useState<App.ChatPlaceholder | undefined>(global.neo.placeholder)
 
 	const {
+		assistant,
+		loadingChat,
 		messages,
 		loading,
 		title,
@@ -62,13 +66,17 @@ const AIChat = (props: AIChatProps) => {
 		cancel,
 		uploadFile,
 		attachments,
+		updateAssistant,
+		resetAssistant,
 		removeAttachment,
 		addAttachment,
 		formatFileName,
 		setAttachments,
 		getChat,
+		getLatestChat,
 		generatePrompts,
-		setPendingCleanup
+		setPendingCleanup,
+		makeChatID
 	} = useAIChat({ chat_id, upload_options })
 	const [chat_context, setChatContext] = useState<App.ChatContext>({ placeholder: '', signal: '' })
 
@@ -98,7 +106,7 @@ const AIChat = (props: AIChatProps) => {
 					config: v.config,
 					signal: chat_context.signal,
 					chat_id: chat_id,
-					assistant_id: assistant_id
+					assistant_id: assistant?.assistant_id || ''
 				}
 			}
 		])
@@ -113,8 +121,17 @@ const AIChat = (props: AIChatProps) => {
 	// Load chat details when initialized
 	useEffect(() => {
 		const loadChat = async () => {
-			if (!initialized && chat_id) {
+			if (!initialized && chat_id != '') {
 				await getChat()
+				setInitialized(true)
+			}
+
+			// New chat
+			if (!initialized && !chat_id) {
+				// if res is not null, create a new chat
+				const res = await getLatestChat(assistant?.assistant_id || '')
+				res && !res.exist && handleNewChat(res) // new chat
+				res && res.exist && setChatId(res.chat_id) // existing chat
 				setInitialized(true)
 			}
 		}
@@ -150,7 +167,7 @@ const AIChat = (props: AIChatProps) => {
 					config: field.config,
 					signal: chat_context.signal,
 					chat_id: chat_id,
-					assistant_id: assistant_id
+					assistant_id: assistant?.assistant_id || ''
 				}
 			}
 
@@ -189,12 +206,21 @@ const AIChat = (props: AIChatProps) => {
 	}, [pathname])
 
 	const handleNewChat = (options?: App.NewChatOptions) => {
-		const new_chat_id = `chat_${Date.now()}`
+		const new_chat_id = options?.chat_id || makeChatID()
 		setChatId(new_chat_id)
 		setMessages([])
 		setAttachments([])
 		global.setNeoChatId(new_chat_id)
-		setTitle(is_cn ? '未命名' : 'Untitled')
+
+		// Set placeholder
+		if (options?.placeholder) {
+			setPlaceholder(options?.placeholder)
+			global.setNeoPlaceholder(options?.placeholder)
+		}
+
+		// Title
+		const title = options?.placeholder?.title || (is_cn ? '新对话' : 'New Chat')
+		setTitle(title)
 
 		if (options?.content) {
 			setInputValue(options.content)
@@ -204,6 +230,13 @@ const AIChat = (props: AIChatProps) => {
 			options.attachments.forEach((attachment) => {
 				addAttachment(attachment)
 			})
+		}
+
+		// Reset the assistant
+		if (options?.assistant) {
+			updateAssistant(options?.assistant)
+		} else {
+			resetAssistant()
 		}
 
 		// Focus using the new method
@@ -428,6 +461,13 @@ const AIChat = (props: AIChatProps) => {
 					if (typeof text === 'string' && text.trim()) {
 						setInputValue(text)
 					}
+				},
+				onComplete: (text) => {
+					// Remove <think>....</think>
+					const parts = text.split('</think>')
+					if (parts.length > 1) {
+						setInputValue(parts[1].trim())
+					}
 				}
 			})
 
@@ -480,6 +520,36 @@ const AIChat = (props: AIChatProps) => {
 							/>
 							<span>{is_cn ? '加载历史消息...' : 'Loading message history...'}</span>
 						</div>
+					) : messages.length === 0 ? (
+						<div className={styles.placeholder}>
+							{placeholder?.description && (
+								<div className={styles.description}>{placeholder.description}</div>
+							)}
+							{placeholder?.prompts && placeholder.prompts.length > 0 && (
+								<div className={styles.prompts}>
+									<div className={styles.promptsHint}>
+										{is_cn ? '尝试这样问我' : 'Try asking me like this'}
+									</div>
+									{placeholder.prompts.map((prompt, index) => (
+										<div
+											key={index}
+											className={styles.promptItem}
+											onClick={() => {
+												setInputValue(prompt)
+												focusRef.current?.()
+											}}
+										>
+											{prompt}
+										</div>
+									))}
+								</div>
+							)}
+							{!placeholder?.description && !placeholder?.prompts && (
+								<div className={styles.defaultPlaceholder}>
+									{is_cn ? '开始一个新的对话' : 'Start a new conversation'}
+								</div>
+							)}
+						</div>
 					) : (
 						messages.map((msg, index) => (
 							<ChatItem
@@ -487,8 +557,8 @@ const AIChat = (props: AIChatProps) => {
 								context={context}
 								field={field}
 								chat_info={msg}
+								chat_id={chat_id}
 								callback={() => {}}
-								avatar={msg.is_neo ? botAvatar : undefined}
 							/>
 						))
 					)}
@@ -498,139 +568,138 @@ const AIChat = (props: AIChatProps) => {
 
 			{/* Input Area */}
 			<div className={styles.inputArea}>
-				{((showCurrentPage && currentPage) || attachments.length > 0) && (
-					<div className={styles.contextArea}>
-						{showCurrentPage && currentPage && (
-							<div className={styles.currentPage}>
+				<div className={styles.contextArea}>
+					<div className={styles.currentPage}>
+						{/* Assistant Info Section */}
+						<div className={styles.leftSection}>
+							<Assistant
+								assistant={assistant || {}}
+								loading={loadingChat}
+								onDelete={() => {
+									resetAssistant()
+									focusRef.current?.() // focus on the input
+								}}
+							/>
+							{/* Current Page Info */}
+							{showCurrentPage && currentPage && (
 								<div className={styles.pageInfo}>
 									<Icon name='icon-link-2' size={12} className='pageIcon' />
 									{currentPage}
 								</div>
-								{loading && (
-									<div className={styles.loadingContainer}>
-										<svg
-											width='8'
-											height='8'
-											viewBox='0 0 8 8'
-											fill='currentColor'
-											xmlns='http://www.w3.org/2000/svg'
-										>
-											<circle cx='4' cy='4' r='4' />
-										</svg>
-									</div>
-								)}
-							</div>
-						)}
+							)}
+						</div>
 
-						{attachments.length > 0 && (
-							<div className={styles.attachmentsArea}>
-								<div className={styles.attachmentsList}>
-									{attachments.map((attachment, index) => (
-										<div key={index} className={clsx(styles.attachmentItem)}>
-											<div
-												className={styles.deleteBtn}
-												onClick={(e) => {
-													e.stopPropagation()
-													removeAttachment(attachment)
-												}}
-											>
-												<Icon name='material-close' size={12} />
-											</div>
-											<div
-												className={clsx(styles.attachmentContent, {
-													[styles.uploading]:
-														attachment.status === 'uploading'
-												})}
-												onClick={() => handleFileClick(attachment)}
-											>
-												<div className={styles.attachmentThumb}>
-													{attachment.type === 'URL' ? (
-														<div
-															className={
-																styles.attachmentTypeIcon
-															}
-														>
-															<Icon
-																name='icon-link'
-																size={10}
-															/>
-														</div>
-													) : attachment.thumbUrl ? (
-														<img
-															src={attachment.thumbUrl}
-															alt={attachment.name}
-														/>
-													) : (
-														<div
-															className={clsx(
-																styles.attachmentTypeIcon,
-																{
-																	[styles.longType]:
-																		attachment
-																			.type
-																			.length >=
-																		4
-																}
-															)}
-														>
-															{attachment.type.slice(0, 3)}
-														</div>
-													)}
-													{attachment.status === 'uploading' && (
-														<div
-															className={
-																styles.uploadingOverlay
-															}
-														>
-															<Icon
-																name='icon-loader'
-																size={16}
-																className={
-																	styles.spinner
-																}
-															/>
-														</div>
-													)}
-												</div>
-												<div
-													className={styles.attachmentName}
-													title={attachment.name}
-												>
-													{attachment.name.length > 15
-														? `${attachment.name.slice(
-																0,
-																12
-														  )}...`
-														: attachment.name}
-												</div>
-												<div
-													className={clsx(styles.pinBtn, {
-														[styles.pinned]: attachment.pinned
-													})}
-													onClick={(e) => {
-														e.stopPropagation()
-														const updatedAttachments =
-															attachments.map((att) =>
-																att === attachment
-																	? {
-																			...att,
-																			pinned: !att.pinned
-																	  }
-																	: att
-															)
-														setAttachments(updatedAttachments)
-													}}
-												>
-													<Icon name='material-keep' size={12} />
-												</div>
-											</div>
-										</div>
-									))}
-								</div>
+						{/* Status Indicator */}
+						{loading && (
+							<div className={styles.loadingContainer}>
+								<svg
+									width='8'
+									height='8'
+									viewBox='0 0 8 8'
+									fill='currentColor'
+									xmlns='http://www.w3.org/2000/svg'
+								>
+									<circle cx='4' cy='4' r='4' />
+								</svg>
 							</div>
 						)}
 					</div>
-				)}
+
+					{/* Attachments Area */}
+					{attachments.length > 0 && (
+						<div className={styles.attachmentsArea}>
+							<div className={styles.attachmentsList}>
+								{attachments.map((attachment, index) => (
+									<div key={index} className={clsx(styles.attachmentItem)}>
+										<div
+											className={styles.deleteBtn}
+											onClick={(e) => {
+												e.stopPropagation()
+												removeAttachment(attachment)
+											}}
+										>
+											<Icon name='material-close' size={12} />
+										</div>
+										<div
+											className={clsx(styles.attachmentContent, {
+												[styles.uploading]:
+													attachment.status === 'uploading'
+											})}
+											onClick={() => handleFileClick(attachment)}
+										>
+											<div className={styles.attachmentThumb}>
+												{attachment.type === 'URL' ? (
+													<div
+														className={
+															styles.attachmentTypeIcon
+														}
+													>
+														<Icon name='icon-link' size={10} />
+													</div>
+												) : attachment.thumbUrl ? (
+													<img
+														src={attachment.thumbUrl}
+														alt={attachment.name}
+													/>
+												) : (
+													<div
+														className={clsx(
+															styles.attachmentTypeIcon,
+															{
+																[styles.longType]:
+																	attachment.type
+																		.length >= 4
+															}
+														)}
+													>
+														{attachment.type.slice(0, 3)}
+													</div>
+												)}
+												{attachment.status === 'uploading' && (
+													<div className={styles.uploadingOverlay}>
+														<Icon
+															name='icon-loader'
+															size={16}
+															className={styles.spinner}
+														/>
+													</div>
+												)}
+											</div>
+											<div
+												className={styles.attachmentName}
+												title={attachment.name}
+											>
+												{attachment.name.length > 15
+													? `${attachment.name.slice(0, 12)}...`
+													: attachment.name}
+											</div>
+											<div
+												className={clsx(styles.pinBtn, {
+													[styles.pinned]: attachment.pinned
+												})}
+												onClick={(e) => {
+													e.stopPropagation()
+													const updatedAttachments =
+														attachments.map((att) =>
+															att === attachment
+																? {
+																		...att,
+																		pinned: !att.pinned
+																  }
+																: att
+														)
+													setAttachments(updatedAttachments)
+												}}
+											>
+												<Icon name='material-keep' size={12} />
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						</div>
+					)}
+				</div>
 
 				<div className={styles.inputWrapper}>
 					<MentionTextArea

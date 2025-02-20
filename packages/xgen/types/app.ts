@@ -13,7 +13,7 @@ export declare namespace App {
 	type Theme = 'light' | 'dark'
 
 	/** Global Neo Context */
-	type Neo = { assistant_id?: string; chat_id?: string }
+	type Neo = { assistant_id?: string; chat_id?: string; placeholder?: ChatPlaceholder }
 
 	type ChatMessageType =
 		| 'text'
@@ -26,8 +26,10 @@ export declare namespace App {
 		| 'progress'
 		| 'page'
 		| 'widget'
-		| 'function'
+		| 'tool'
+		| 'think'
 		| 'loading'
+		| 'action'
 
 	type ChatCmd = {
 		id: string
@@ -54,6 +56,13 @@ export declare namespace App {
 		[key: string]: any
 	}
 
+	interface AssistantSummary {
+		assistant_id?: string
+		assistant_name?: string
+		assistant_avatar?: string
+		assistant_deleteable?: boolean
+	}
+
 	interface AssistantFilter {
 		keywords?: string
 		tags?: string[]
@@ -78,8 +87,9 @@ export declare namespace App {
 
 	type ChatAI = {
 		is_neo: boolean
-		is_new: boolean
+		new: boolean
 		text: string
+		id?: string
 		type?: ChatMessageType
 		function?: string
 		arguments?: string
@@ -87,14 +97,16 @@ export declare namespace App {
 		assistant_id?: string
 		assistant_name?: string
 		assistant_avatar?: string
-		actions?: Array<Action.ActionParams>
-		done: boolean
+		// actions?: Array<Action.ActionParams>
+		done: boolean // Whether the message is done
+		delta?: boolean // Whether the message is a delta message
 	}
 
 	type ChatHuman = {
 		is_neo: boolean
 		text: string
 		attachments?: ChatAttachment[]
+		assistant_id?: string
 		context?: {
 			namespace: string
 			stack: string
@@ -112,7 +124,15 @@ export declare namespace App {
 
 	/** Chat detail with history */
 	interface ChatDetail {
-		chat: Record<string, any>
+		chat: {
+			assistant_id?: string
+			assistant_name?: string
+			assistant_avatar?: string
+			assistant_deleteable?: boolean
+			placeholder?: ChatPlaceholder
+
+			[key: string]: any
+		}
 		history: Array<{
 			role: string
 			content: string
@@ -211,7 +231,15 @@ export declare namespace App {
 		/** Application mode */
 		mode?: 'development' | 'production' | 'test'
 
+		/** default assistant */
+		agent?: {
+			default?: AssistantSummary
+		}
+
 		optional?: {
+			/** default layout */
+			layout?: Layout
+
 			/** remote api cache, default is true */
 			remoteCache?: boolean
 			/** neo config, for chatgpt service */
@@ -309,7 +337,16 @@ export declare namespace App {
 	/** Options for creating a new chat */
 	interface NewChatOptions {
 		content?: string
+		chat_id?: string
+		assistant?: AssistantSummary
 		attachments?: ChatAttachment[]
+		placeholder?: ChatPlaceholder
+	}
+
+	interface ChatPlaceholder {
+		title?: string
+		description?: string
+		prompts?: string[]
 	}
 
 	// Add Mention interface near the top with other basic types

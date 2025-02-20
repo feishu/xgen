@@ -9,6 +9,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { message as message_ } from 'antd'
 import { RcFile } from 'antd/es/upload'
 import { getLocale } from '@umijs/max'
+import type { Action } from '@/types'
+import { useAction } from '@/actions'
+import { t } from '@wangeditor/editor'
 
 type Args = {
 	/** the assistant id to use for the chat **/
@@ -106,18 +109,65 @@ type GenerateOptions = {
 	onComplete?: (finalText: string) => void | Promise<void>
 }
 
-export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
+// HTML escape helper function
+const escapeHtml = (text: string) => {
+	return text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#039;')
+}
+
+// Process content between tags
+const processTagContent = (text: string, tagName: string) => {
+	// Look for content between opening and closing tags, using positive lookbehind and lookahead
+	const regex = new RegExp(`(?<=<${tagName}>)(.*?)(?=<\/${tagName}>)`, 'gis')
+	return text.replace(regex, (content) => {
+		return escapeHtml(content)
+	})
+}
+
+/** Format text to MDX with proper tag handling */
+const formatToMDX = (text: string, tokens: Record<string, { pending: boolean }>) => {
+	let formattedText = text
+
+	Object.keys(tokens).forEach((token) => {
+		const tag = token.charAt(0).toUpperCase() + token.slice(1)
+		const pending = tokens[token]?.pending ? 'true' : 'false'
+
+		// First escape content inside the original tags
+		formattedText = processTagContent(formattedText, token)
+
+		// TrimRight uncompleted tags
+		formattedText = formattedText.replace(/<[^>]*$/, '')
+
+		// Then replace the tags with the new format
+		formattedText = formattedText
+			.replace(new RegExp(`<${token}>`, 'gi'), `<${tag} pending="${pending}">\n`)
+			.replace(new RegExp(`</${token}>`, 'gi'), `\n</${tag}>`)
+	})
+
+	return formattedText
+}
+
+export default ({ chat_id, upload_options = {} }: Args) => {
 	const event_source = useRef<EventSource>()
+	const global = useGlobal()
 	const [messages, setMessages] = useState<Array<App.ChatInfo>>([])
+	const [assistant, setAssistant] = useState<App.AssistantSummary | undefined>(global.default_assistant)
+
 	const [title, setTitle] = useState<string>('')
 	const [loading, setLoading] = useState(false)
+	const [loadingChat, setLoadingChat] = useState(false)
 	const [attachments, setAttachments] = useState<App.ChatAttachment[]>([])
 	const [pendingCleanup, setPendingCleanup] = useState<App.ChatAttachment[]>([])
 	const uploadControllers = useRef<Map<string, AbortController>>(new Map())
-	const global = useGlobal()
+	const [assistant_id, setAssistantId] = useState<string | undefined>('')
 
 	const locale = getLocale()
 	const is_cn = locale === 'zh-CN'
+	const onAction = useAction()
 
 	// Add new state for title generation loading
 	const [titleGenerating, setTitleGenerating] = useState(false)
@@ -129,6 +179,82 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		if (api.startsWith('http')) return api
 		return `/api/${window.$app.api_prefix}${api}`
 	}, [global.app_info.optional?.neo?.api])
+
+	/** Update assistant **/
+	const updateAssistant = useMemoizedFn(async (assistant: App.AssistantSummary) => {
+		setAssistant(assistant)
+		setAssistantId(assistant.assistant_id)
+	})
+
+	/** Merge messages with same id */
+	const mergeMessages = useMemoizedFn((parsedContent: any[], baseMessage: any): App.ChatInfo[] => {
+		const res: App.ChatInfo[] = []
+
+		// Step 1: Group messages by ID
+		const messageGroups = new Map<string, any[]>()
+		parsedContent.forEach((item) => {
+			if (!item.id) {
+				let text =
+					item.type === 'think' || item.type === 'tool' ? item.props?.['text'] : item.text || ''
+
+				res.push({
+					...baseMessage,
+					...item,
+					type: 'text',
+					text: text
+				})
+				return
+			}
+			const group = messageGroups.get(item.id) || []
+			group.push(item)
+			messageGroups.set(item.id, group)
+		})
+
+		// Step 2 & 3: Process each group and merge into the last item
+		messageGroups.forEach((group) => {
+			const lastItem = group[group.length - 1]
+			let mergedText = ''
+
+			// Merge all items' text
+			group.forEach((item) => {
+				if (item.type === 'think' || item.type === 'tool') {
+					let text = item.props?.['text'] || ''
+					// if (item.type == 'tool') {
+					// 	text = text.replace(/\{/g, '\\{')
+					// 	text = text.replace(/\}/g, '\\}')
+					// }
+					mergedText += '\n' + text
+				} else {
+					mergedText += '\n' + item.text || ''
+				}
+			})
+
+			// if message type is not text, tool, think, then append directly
+			if (lastItem.type != 'text' && lastItem.type != 'tool' && lastItem.type != 'think') {
+				res.push({ ...baseMessage, ...lastItem })
+				return
+			}
+
+			// Create final message based on last item's type
+			const finalMessage = {
+				...baseMessage,
+				...lastItem,
+				type: 'text',
+				text: formatToMDX(mergedText, {
+					think: { pending: false },
+					tool: { pending: false }
+				})
+			}
+
+			// Remove props if exists
+			if (finalMessage.props) {
+				delete finalMessage.props
+			}
+
+			res.push(finalMessage)
+		})
+		return res
+	})
 
 	/** Format chat message **/
 	const formatMessage = useMemoizedFn(
@@ -143,6 +269,7 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 			const baseMessage = {
 				is_neo: role === 'assistant',
 				context: { chat_id: chatId, assistant_id },
+				assistant_id,
 				assistant_name,
 				assistant_avatar
 			}
@@ -154,11 +281,7 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 			if (trimmedContent.startsWith('[{')) {
 				try {
 					const parsedContent = JSON.parse(trimmedContent)
-					const res: App.ChatInfo[] = []
-					parsedContent.forEach((item: any) => {
-						res.push({ ...baseMessage, ...item })
-					})
-					return res
+					return mergeMessages(parsedContent, baseMessage)
 				} catch (e) {
 					return [{ ...baseMessage, text: content }]
 				}
@@ -215,6 +338,13 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 				onComplete: async (finalTitle) => {
 					// Use the final complete title
 					generatedTitle = finalTitle
+					// Remove <think>....</think>
+					finalTitle = finalTitle.replace(/<think>.*?<\/think>/g, '')
+					const parts = finalTitle.split('</think>')
+					if (parts.length > 1) {
+						finalTitle = parts[1]
+					}
+
 					setTitle(finalTitle)
 
 					// Update the chat with the generated title
@@ -334,7 +464,92 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 			setLoading(false)
 		}
 
+		function isFirstMessage(messages: App.ChatInfo[]) {
+			if (messages.length < 2) return false
+
+			// The first message is a user message
+			// The second message is an assistant message
+			// The rest of the messages are total assistant messages
+			const userMessage = messages[0]
+			const assistantMessage = messages[1]
+			const lastMessage = messages[messages.length - 1]
+
+			if (messages.length === 2) {
+				// Validate the last message is not an error message
+
+				if (lastMessage.is_neo && (lastMessage as App.ChatAI).type == 'error') {
+					return false
+				}
+
+				return userMessage && assistantMessage
+			}
+
+			// The rest of the messages are total assistant messages
+			let resetUserMessageCount = 0
+			for (let i = 2; i < messages.length; i++) {
+				const message = messages[i]
+				if (!message.is_neo) {
+					resetUserMessageCount++
+				}
+
+				if (resetUserMessageCount > 0) {
+					return false
+				}
+			}
+
+			// Validate the last message is not an error message
+			if (lastMessage.is_neo && (lastMessage as App.ChatAI).type == 'error') {
+				return false
+			}
+
+			return true
+		}
+
+		// Run action with namespace, primary, data_item, extra
+		function runAction(
+			action: Array<Action.ActionParams>,
+			namespace: string,
+			primary: string,
+			data_item: any,
+			extra?: any
+		) {
+			try {
+				onAction({ namespace, primary, data_item, it: { action, title: '', icon: '' }, extra })
+			} catch (err) {
+				console.error('Failed to run action:', err)
+			}
+		}
+
+		function getContent(
+			content: string,
+			type: string,
+			text: string,
+			delta: boolean,
+			is_new: boolean,
+			props: Record<string, any> | undefined
+		): string {
+			// Content value
+			if (delta) {
+				content = content + text
+				if (text?.startsWith('\r') || is_new) {
+					content = text.replace('\r', '')
+				}
+				return content
+			}
+			return text || ''
+		}
+
 		function setupEventSource() {
+			// Save last assistant info
+			const last_assistant: {
+				assistant_id: string | null
+				assistant_name: string | null
+				assistant_avatar: string | null
+			} = { assistant_id: null, assistant_name: null, assistant_avatar: null }
+
+			let last_type: App.ChatMessageType | null = null
+			let content = ''
+
 			// Close existing connection if any
 			event_source.current?.close()
 
@@ -348,27 +563,99 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 			es.onmessage = ({ data }: { data: string }) => {
 				const formated_data = ntry(() => JSON.parse(data)) as App.ChatAI
 				if (!formated_data) return
-
 				// data format handle
 				const {
 					text,
 					props,
 					type,
-					actions,
 					done,
 					assistant_id,
 					assistant_name,
 					assistant_avatar,
-					is_new
+					new: is_new,
+					delta
 				} = formated_data
-				const current_answer = messages[messages.length - 1] as App.ChatAI
+
+				content = getContent(content, type || 'text', text, delta || false, is_new, props)
+
+				// Action message (action call)
+				if (type === 'action') {
+					const { namespace, primary, data_item, action, extra } = props || {}
+					if (!action) {
+						console.error('No actions found')
+						if (done) {
+							setLoading(false)
+							es.close()
+						}
+						return
+					}
+
+					if (!Array.isArray(action)) {
+						console.error('Action is not an array')
+						if (done) {
+							setLoading(false)
+							es.close()
+						}
+						return
+					}
+
+					// Close event source if done
+					if (done) {
+						setLoading(false)
+						es.close()
+
+						// If is the first message, generate title using SSE
+						if (isFirstMessage(messages) && chat_id) {
+							handleTitleGeneration(messages, chat_id)
+						}
+					}
+
+					// Run action
+					runAction(
+						action as Array<Action.ActionParams>,
+						namespace || 'chat',
+						primary || 'id',
+						data_item || {},
+						extra
+					)
+					return
+				}
+
+				// create new message if is_new is true
+				if (is_new) {
+					messages.push({ ...formated_data, is_neo: true })
+				}
 
 				// Set assistant info
-				if (assistant_id) current_answer.assistant_id = assistant_id
-				if (assistant_name) current_answer.assistant_name = assistant_name
-				if (assistant_avatar) current_answer.assistant_avatar = assistant_avatar
-				if (is_new) current_answer.is_new = is_new
-				current_answer.type = type || 'text'
+				const current_answer = messages[messages.length - 1] as App.ChatAI
+				if (assistant_id) {
+					last_assistant.assistant_id = assistant_id
+				}
+				if (assistant_name) {
+					last_assistant.assistant_name = assistant_name
+				}
+				if (assistant_avatar) {
+					last_assistant.assistant_avatar = assistant_avatar
+				}
+
+				if (is_new) current_answer.new = is_new
+				current_answer.assistant_id = last_assistant.assistant_id || undefined
+				current_answer.assistant_name = last_assistant.assistant_name || undefined
+				current_answer.assistant_avatar = last_assistant.assistant_avatar || undefined
+				current_answer.type = type || last_type || 'text'
+
+				// Update assistant info
+				if (
+					last_assistant.assistant_id &&
+					last_assistant.assistant_name &&
+					last_assistant.assistant_avatar
+				) {
+					updateAssistant({
+						...last_assistant,
+						assistant_deleteable:
+							last_assistant.assistant_id !== global.default_assistant.assistant_id
+					} as App.AssistantSummary)
+				}
 
 				if (done) {
 					if (text) {
@@ -382,35 +669,53 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 						current_answer.props = props
 					}
 
-					console.log(`done`, current_answer)
-
 					// If is the first message, generate title using SSE
-					if (messages.length === 2 && chat_id && current_answer.text) {
+					if (isFirstMessage(messages) && chat_id) {
 						handleTitleGeneration(messages, chat_id)
 					}
 
-					current_answer.actions = actions
-					setMessages([...messages])
+					// Update the message if it has text or props
+					if ((text && text.length > 0) || props) {
+						setMessages([...messages])
+					}
 					setLoading(false)
-
 					es.close()
 					return
 				}
 
-				if (!text && !props) return
+				if (!text && !props && !type) return
 				if (props) {
 					current_answer.props = props
 				}
 
-				if (text) {
-					if (text.startsWith('\r')) {
-						current_answer.text = text.replace('\r', '')
-					} else {
-						current_answer.text = current_answer.text + text
-					}
+				const tokens: Record<string, { pending: boolean }> = {
+					think: { pending: false },
+					tool: { pending: false }
 				}
+				if (text) {
+					current_answer.text = content
 
-				console.log(current_answer)
+					// delta message is a partial message
+					if (delta) {
+						current_answer.text = content
+						if (type == 'think' || type == 'tool') {
+							current_answer.type = 'text'
+							// check if the tag is closed
+							if (content.indexOf(`</${type}>`) == -1) {
+								tokens[type].pending = true
+								current_answer.text += `</${type}>`
+							}
+
+							// Tools escape { to %7B
+							// if (type == 'tool') {
+							// 	current_answer.text = current_answer.text.replace(/{/g, '%7B')
+							// }
+						}
+					}
+
+					// Format the text to be a valid MDX
+					current_answer.text = formatToMDX(current_answer.text, tokens)
+				}
 
 				const message_new = [...messages]
 				if (message_new.length > 0) {
@@ -649,11 +954,16 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 			if (filter.order) params.append('order', filter.order)
 		}
 
+		setLoading(true)
 		const endpoint = `${neo_api}/chats?${params.toString()}`
 		const [err, res] = await to<{ data: ChatResponse }>(axios.get(endpoint))
-		if (err) throw err
+		if (err) {
+			setLoading(false)
+			throw err
+		}
 
 		// Return the complete response data with pagination info
+		setLoading(false)
 		return {
 			groups: res?.data?.groups || [],
 			page: res?.data?.page || 1,
@@ -665,6 +975,7 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 
 	/** Get Single Chat **/
 	const getChat = useMemoizedFn(async (id?: string) => {
+		setLoadingChat(true)
 		if (!neo_api) return
 
 		const chatId = id || chat_id
@@ -675,10 +986,14 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		const [err, res] = await to<{ data: App.ChatDetail }>(axios.get(endpoint))
 		if (err) {
 			message_.error('Failed to fetch chat details')
+			setLoadingChat(false)
 			return
 		}
 
-		if (!res?.data) return null
+		if (!res?.data) {
+			setLoadingChat(false)
+			return null
+		}
 
 		const chatInfo = res.data
 		const formattedMessages: App.ChatInfo[] = []
@@ -692,10 +1007,71 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		setMessages(formattedMessages)
 		setTitle(chatInfo.chat.title || (is_cn ? '未命名' : 'Untitled'))
 
+		// Update assistant
+		updateAssistant(res.data.chat as App.AssistantSummary)
+		setLoadingChat(false)
+
 		return {
 			messages: formattedMessages,
 			title: chatInfo.chat.title || (is_cn ? '未命名' : 'Untitled')
 		}
+	})
+
+	/** Get the latest chat ID */
+	const getLatestChat = useMemoizedFn(async function (
+		assistant_id?: string
+	): Promise<{ chat_id: string; placeholder?: App.ChatPlaceholder; exist?: boolean } | null> {
+		if (!neo_api) return { chat_id: makeChatID(), placeholder: undefined, exist: false }
+		setLoadingChat(true)
+
+		const endpoint = `${neo_api}/chats/latest?token=${encodeURIComponent(getToken())}&assistant_id=${
+			assistant_id || ''
+		}`
+
+		const [err, res] = await to<{ data: App.ChatDetail | { placeholder: App.ChatPlaceholder } }>(
+			axios.get(endpoint)
+		)
+		if (err) {
+			message_.error('Failed to fetch the latest chat')
+			setLoadingChat(false)
+			return null
+		}
+
+		if (!res?.data) return null
+
+		// New chat
+		if (typeof res.data === 'object' && 'placeholder' in res.data) {
+			// Update assistant
+			updateAssistant(res.data as App.AssistantSummary)
+			setLoadingChat(false)
+			return { chat_id: makeChatID(), placeholder: res.data.placeholder }
+		}
+
+		// Existing chat
+		const chatInfo = res.data
+		const formattedMessages: App.ChatInfo[] = []
+		chatInfo.history.forEach(({ role, content, assistant_id, assistant_name, assistant_avatar }) => {
+			formattedMessages.push(
+				...formatMessage(role, content, chat_id || '', assistant_id, assistant_name, assistant_avatar)
+			)
+		})
+
+		// Set messages directly in getChat
+		setMessages(formattedMessages)
+		setTitle(chatInfo.chat.title || (is_cn ? '未命名' : 'Untitled'))
+
+		// Update assistant
+		updateAssistant(chatInfo.chat)
+		setLoadingChat(false)
+
+		// Set chat_id
+		global.setNeoChatId(chatInfo.chat.chat_id)
+		return { chat_id: chatInfo.chat.chat_id, exist: true }
+	})
+
+	/** Reset assistant **/
+	const resetAssistant = useMemoizedFn(() => {
+		updateAssistant(global.default_assistant)
 	})
 
 	/** Update Chat **/
@@ -896,6 +1272,7 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 						options.onProgress?.(result)
 					}
 					if (done) {
+						options.onComplete?.(result)
 						es.close()
 						resolve(result)
 					}
@@ -940,6 +1317,18 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		return res?.data || { data: [], page: 1, pagesize: 10, total: 0, last_page: 1 }
 	})
 
+	/** Call Assistant API */
+	const callAssistantAPI = useMemoizedFn(
+		async (assistantId: string, name: string, payload: Record<string, any>) => {
+			if (!neo_api) return null
+			const endpoint = `${neo_api}/assistants/${assistantId}/call?token=${encodeURIComponent(getToken())}`
+			const [err, res] = await to<{ data: any }>(axios.post(endpoint, { name, payload }))
+			if (err) throw err
+
+			return res || null
+		}
+	)
+
 	/** Find Assistant Detail */
 	const findAssistant = useMemoizedFn(async (assistantId: string) => {
 		if (!neo_api) return null
@@ -973,9 +1362,18 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		return true
 	})
 
+	/** Make a chat ID */
+	const makeChatID = function () {
+		const random = Math.random().toString(36).substring(2, 15)
+		const ts = Date.now()
+		return `chat_${ts}_${random}`
+	}
+
 	return {
 		messages,
 		loading,
+		loadingChat,
+		assistant,
 		setMessages,
 		cancel,
 		uploadFile,
@@ -988,8 +1386,10 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		cancelUpload,
 		formatFileName,
 		getHistory,
+		makeChatID,
 		getChats,
 		getChat,
+		getLatestChat,
 		updateChat,
 		title,
 		setTitle,
@@ -1000,11 +1400,14 @@ export default ({ assistant_id, chat_id, upload_options = {} }: Args) => {
 		generateTitle,
 		generatePrompts,
 		titleGenerating,
+		resetAssistant,
+		updateAssistant,
 		setTitleGenerating,
 		getAssistants,
 		findAssistant,
 		saveAssistant,
 		deleteAssistant,
+		callAssistantAPI,
 		setPendingCleanup
 	}
 }
