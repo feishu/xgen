@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import type { Global, Response } from '@/types'
 import AmisRender from '@/components/base/AmisRender'
 import { BasePage } from '@/components'
+import Modal from '@/components/base/Modal'
 
 /** Dynamically forward to the components */
 const Index = () => {
@@ -23,12 +24,14 @@ const Index = () => {
 		pageId = pageId.substr(0, menuIndex)
 	}
 	
-	if (!pageId) pageId = 'index'
+	if (!pageId) pageId = '/index'
+
+	if (moduleId && moduleId.startsWith('/')) moduleId = `/${moduleId}`
 
 	const [schema, setSchema] = useState({ type: "page", body: {}, full: false })
 	const [loading, setLoading] = useState(true)
 	const getPageSchema = () => {
-		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema/${moduleId}${pageId}`, { params: param })
+		return axios.get<Global.AnyObject, Response<Global.AnyObject>>(`/api/v1/syd/schema${moduleId}${pageId}`, { params: param })
 	}
 
 	// 初始化获取所有页面信息
