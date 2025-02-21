@@ -13,7 +13,7 @@ const Index = () => {
 	// const locale = getLocale()
 	// const [params] = useSearchParams()
 	// const search_params = Object.fromEntries(params)
-	let { moduleId, pageId = 'index', param } = useMatch<Global.AnyObject>(
+	let { moduleId, pageId = '/index', param } = useMatch<Global.AnyObject>(
 		/^\/syd\/([^/]+)(?:\/(.*?))?(?:\/([^/]+))?$/,
 		['moduleId', 'pageId', 'param']
 	)
@@ -26,7 +26,8 @@ const Index = () => {
 	
 	if (!pageId) pageId = '/index'
 
-	if (moduleId && moduleId.startsWith('/')) moduleId = `/${moduleId}`
+	if (moduleId && !moduleId.startsWith('/')) moduleId = `/${moduleId}`
+	if (pageId && !pageId.startsWith('/')) pageId = `/${pageId}`
 
 	const [schema, setSchema] = useState({ type: "page", body: {}, full: false })
 	const [loading, setLoading] = useState(true)
