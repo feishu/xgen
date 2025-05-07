@@ -31,6 +31,9 @@ export default class GlobalModel {
 	loading: boolean = false
 	visible_menu: boolean = true
 	hide_nav: boolean = false
+	visible_log_window: boolean = false
+
+	developer = {} as App.Developer
 
 	// Global Neo Context
 	neo: App.Neo = { assistant_id: undefined, chat_id: undefined, placeholder: undefined }
@@ -74,6 +77,9 @@ export default class GlobalModel {
 
 		// Connectors
 		this.setConnectors(res.agent?.connectors || [])
+
+		// Developer
+		this.setDeveloper(res.developer || {})
 
 		return Promise.resolve()
 	}
@@ -154,6 +160,11 @@ export default class GlobalModel {
 		local.default_assistant = assistant
 	}
 
+	setDeveloper(developer: App.Developer) {
+		this.developer = developer
+		local.developer = developer
+	}
+
 	setConnectors(connectors: Array<{ label: string; value: string }>) {
 		this.connectors = {
 			options: connectors,
@@ -213,6 +224,10 @@ export default class GlobalModel {
 
 	setNeoPlaceholder(placeholder: App.ChatPlaceholder) {
 		this.neo.placeholder = placeholder
+	}
+
+	setVisibleLogWindow(visible: boolean) {
+		this.visible_log_window = visible
 	}
 
 	updateMenuStatus(itemkey_or_pathname: string) {

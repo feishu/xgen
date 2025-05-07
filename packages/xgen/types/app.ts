@@ -12,11 +12,20 @@ export declare namespace App {
 
 	type Theme = 'light' | 'dark'
 
+	type Developer = {
+		id?: string
+		name?: string
+		info?: string
+		email?: string
+		homepage?: string
+	}
+
 	/** Global Neo Context */
 	type Neo = { assistant_id?: string; chat_id?: string; placeholder?: ChatPlaceholder }
 
 	type ChatMessageType =
 		| 'text'
+		| 'plan'
 		| 'image'
 		| 'audio'
 		| 'video'
@@ -98,6 +107,9 @@ export declare namespace App {
 		new: boolean
 		text: string
 		id?: string
+		tool_id?: string // tool_id for the message
+		begin?: number // begin for the message
+		end?: number // end for the message
 		type?: ChatMessageType
 		function?: string
 		arguments?: string
@@ -105,6 +117,7 @@ export declare namespace App {
 		assistant_id?: string
 		assistant_name?: string
 		assistant_avatar?: string
+		previous_assistant_id?: string // previous assistant_id for the message
 		// actions?: Array<Action.ActionParams>
 		done: boolean // Whether the message is done
 		delta?: boolean // Whether the message is a delta message
@@ -210,6 +223,15 @@ export declare namespace App {
 		/** Application version */
 		version?: string
 
+		/** Yao version */
+		yao?: {
+			version?: string
+			prversion?: string
+		}
+
+		/** Application developer */
+		developer?: Developer
+
 		/** Application description */
 		description?: string
 		/** api prefix, default is __yao */
@@ -303,6 +325,7 @@ export declare namespace App {
 	interface User {
 		email: string
 		id: number
+		avatar?: string
 		mobile?: any
 		name: string
 		type: string

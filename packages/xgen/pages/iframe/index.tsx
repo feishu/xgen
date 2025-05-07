@@ -3,7 +3,6 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { getLocale, useLocation } from '@umijs/max'
 import { local, session } from '@yaoapp/storex'
 import { App } from '@/types'
-import { t } from '@wangeditor/editor'
 
 const Index = () => {
 	const { search } = useLocation()
